@@ -1756,8 +1756,10 @@ async function handleDonorFile(e) {
     donorZip = await JSZip.loadAsync(e.target.files[0]);
   } catch (err) {
     listEl.innerHTML = '<div class="hint" style="color:var(--danger)">Không mở được file này.</div>';
+    e.target.value = "";
     return;
   }
+  e.target.value = ""; // reset ngay sau khi doc xong, de chon lai DUNG file nay lan nua van bat duoc thay doi
   donorNestedPackages = {};
   donorWallpapers = {};
   donorFontPath = null;
@@ -1935,7 +1937,18 @@ async function handleDonorFile(e) {
       }
       nestedPackages[p] = donorNestedPackages[p];
       toast(`Đã ${wasAlready ? "thay thế bằng" : "ghép"} "${donorNestedPackages[p].label}" — nhớ bấm Xuất file theme`, "ok");
-      renderIconsTab();
+      // KHONG ve lai ca tab (renderIconsTab) vi se mat luon danh sach donor dang mo,
+      // bat nguoi dung phai chon lai file tu dau moi ghep duoc phan tiep theo.
+      // Chi cap nhat dung nut nay + lam moi luoi icon neu dang xem dung goi vua ghep.
+      btn.textContent = "✓ Đã ghép — bấm lại để ghép lại lần nữa";
+      if (currentPkgPath === p) {
+        renderIconGrid(document.getElementById("iconSearch") ? document.getElementById("iconSearch").value.trim().toLowerCase() : "");
+      }
+      const pkgSelectEl = document.getElementById("pkgSelect");
+      if (pkgSelectEl) {
+        const opt = Array.from(pkgSelectEl.options).find(o => o.value === p);
+        if (opt) opt.textContent = donorNestedPackages[p].label + ` (${donorNestedPackages[p].names.length} icon — vừa ghép)`;
+      }
     });
   });
   const mergeChargingBtn = document.getElementById("mergeChargingBtn");
