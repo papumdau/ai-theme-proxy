@@ -1274,6 +1274,8 @@ async function renderWallpaperTab(model) {
   }
   const enableOnetakeBtn = document.getElementById("enableOnetakeBtn");
   if (enableOnetakeBtn) enableOnetakeBtn.addEventListener("click", enableOnetakeSynthesis);
+  const openWpFilterBtn = document.getElementById("openWpFilterBtn");
+  if (openWpFilterBtn) openWpFilterBtn.addEventListener("click", openWpFilterPanel);
   if (hasVariants) {
     document.getElementById("wpModelSelect").addEventListener("change", (e) => renderWallpaperTab(e.target.value));
   }
@@ -4653,7 +4655,6 @@ function openWpFilterPanel() {
   }
   document.getElementById("wpFilterOverlay").classList.add("open");
 }
-document.getElementById("openWpFilterBtn").addEventListener("click", openWpFilterPanel);
 document.getElementById("wpFilterCancelBtn").addEventListener("click", () => {
   document.getElementById("wpFilterOverlay").classList.remove("open");
 });
