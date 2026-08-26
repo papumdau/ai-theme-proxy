@@ -529,6 +529,7 @@ let pkgTextEdits = {};
 
 let systemuiPkgPath = null, systemuiColorFiles = [], systemuiTintColor = "";
 let aodPkgPath = null, aodThemeXmlPath = null, aodThemeXmlRaw = "", aodFields = {};
+let aodDigitBgPaths = [];
 let customFontFile = null, customFontDisplayName = "";
 let refLockPhotoUrl = null;
 let savedDrafts = [];
@@ -688,6 +689,7 @@ async function handleFile(file) {
 
   systemuiPkgPath = null; systemuiColorFiles = []; systemuiTintColor = "";
   aodPkgPath = null; aodThemeXmlPath = null; aodThemeXmlRaw = ""; aodFields = {};
+  aodDigitBgPaths = [];
   pkgTextEdits = {};
   customFontFile = null; customFontDisplayName = "";
 
@@ -720,6 +722,7 @@ async function handleFile(file) {
             const m = aodThemeXmlRaw.match(new RegExp(t + '="([^"]*)"'));
             aodFields[t] = m ? m[1] : "";
           }
+          aodDigitBgPaths = pkg.allNames.filter(n => /digit_bg\.(png|jpg|jpeg)$/i.test(n));
         } catch (e) { /* bo qua */ }
       }
     }
@@ -2977,7 +2980,7 @@ function renderSystemTab() {
 
   if (aodPkgPath) {
     html += `<div class="card"><h3>Màn hình luôn bật (AOD)</h3>
-      <div class="card-hint">Chỉ 2 mục màu này an toàn để tự đổi — kiểu đồng hồ/nền giữ nguyên như bản gốc.</div>
+      <div class="card-hint">2 mục màu bên dưới an toàn tuyệt đối. Mục "kiểu số" là tuỳ chọn thêm — máy khác nhau có thể có số lượng kiểu khác nhau, cần tự thử trên máy thật.</div>
       <div class="grid2">
         <div class="field"><label>Màu chữ đồng hồ AOD</label>
           <div class="row"><input type="color" id="aodFontColorInput" value="${argbOrRgbToHex6(aodFields.fontcolor)}"></div>
@@ -2987,8 +2990,34 @@ function renderSystemTab() {
         </div>
       </div>
       <div class="swatches" id="aodPresetSwatches" style="margin-top:8px"></div>
-      <div class="readonly-row"><span class="k">Kiểu đồng hồ</span><span class="v">${escapeHtml(aodFields.style || "(không rõ)")}</span></div>
+      <div class="readonly-row"><span class="k">Kiểu đồng hồ (style)</span><span class="v">${escapeHtml(aodFields.style || "(không rõ)")}</span></div>
       <div class="hint">Ảnh từng số (0-9) của AOD sửa được trong tab Icon ứng dụng — chọn gói "Màn hình luôn bật (AOD)" ở ô chọn gói.</div>
+
+      <div class="card-hint" style="margin-top:16px">⚠️ Phần dưới đây là kiểu số nội bộ của máy — không phải màu hay ảnh. Số 0,1,2,3... ứng với các mẫu có sẵn trong máy Honor, nhưng <b>mỗi dòng máy có số lượng mẫu khác nhau</b>, không có cách nào biết trước máy nào có bao nhiêu mẫu. Cách dùng: đổi số, xuất file, cài vào máy, bật AOD lên xem — có hình đẹp thì đúng, màn trắng/lỗi thì thử số khác.</div>
+      <div class="grid2">
+        <div class="field"><label>Số kiểu đồng hồ (clock)</label>
+          <input type="number" id="aodClockNumInput" min="0" step="1" value="${escapeAttr(aodFields.clock || "0")}">
+        </div>
+        <div class="field"><label>Số kiểu nền (background)</label>
+          <input type="number" id="aodBgNumInput" min="0" step="1" value="${escapeAttr(aodFields.background || "0")}">
+        </div>
+      </div>
+
+      ${aodDigitBgPaths.length ? `
+      <div class="card-hint" style="margin-top:16px">Cách chắc ăn hơn: thay hẳn ảnh nền AOD bằng ảnh riêng của anh (dùng được trên mọi máy, không cần đoán số). Kích thước chuẩn tuỳ máy — thử lần lượt nếu ảnh không vừa: <b>1080×492</b>, <b>1080×788</b>, hoặc <b>736×1080</b>.</div>
+      <div class="wallpaper-item">
+        <div class="wallpaper-thumb" id="aodBgThumb"></div>
+        <div class="wallpaper-info">
+          <div class="name">Ảnh nền AOD (digit_bg)</div>
+          <div class="path">${escapeHtml(aodDigitBgPaths[0])}${aodDigitBgPaths.length > 1 ? ` (+${aodDigitBgPaths.length - 1} bản khác, đổi cùng lúc)` : ""}</div>
+          <div class="status" id="aodBgStatus">Có trong theme</div>
+        </div>
+        <div>
+          <button class="btn small" id="aodBgReplaceBtn">Thay bằng ảnh khác</button>
+          <input type="file" id="aodBgReplaceInput" accept="image/*" style="display:none">
+        </div>
+      </div>` : ""}
+
       <div class="row" style="margin-top:10px;gap:8px">
         <input type="text" id="aodPresetName" placeholder="Đặt tên để lưu riêng, ví dụ: Trắng dịu" style="flex:1">
         <button class="btn small" id="saveAodPresetBtn">Lưu bộ riêng</button>
@@ -3000,6 +3029,22 @@ function renderSystemTab() {
   }
 
   el.innerHTML = html;
+
+  if (aodDigitBgPaths.length) {
+    (async () => {
+      const thumbEl = document.getElementById("aodBgThumb");
+      if (!thumbEl) return;
+      const existing = iconReplacements[aodPkgPath] && iconReplacements[aodPkgPath][aodDigitBgPaths[0]];
+      let blob = existing;
+      if (!blob) {
+        try {
+          const buf = await nestedPackages[aodPkgPath].zip.files[aodDigitBgPaths[0]].async("uint8array");
+          blob = new Blob([buf], { type: "image/png" });
+        } catch (e) { /* bo qua */ }
+      }
+      if (blob) thumbEl.innerHTML = `<img src="${await blobToDataURL(blob)}">`;
+    })();
+  }
 
   const scInput = document.getElementById("systemuiColorInput");
   if (scInput) scInput.addEventListener("input", () => {
@@ -3052,6 +3097,41 @@ function renderSystemTab() {
     if (!pkgTextEdits[aodPkgPath]) pkgTextEdits[aodPkgPath] = {};
     pkgTextEdits[aodPkgPath][aodThemeXmlPath] = aodThemeXmlRaw;
   });
+  function setAodItemAttr(attrName, value) {
+    const attrRe = new RegExp(attrName + '="[^"]*"');
+    if (attrRe.test(aodThemeXmlRaw)) {
+      aodThemeXmlRaw = aodThemeXmlRaw.replace(attrRe, `${attrName}="${value}"`);
+    } else {
+      aodThemeXmlRaw = aodThemeXmlRaw.replace(/<\/HWTheme>/i, `    <item ${attrName}="${value}"/>\n</HWTheme>`);
+    }
+    aodFields[attrName] = value;
+    if (!pkgTextEdits[aodPkgPath]) pkgTextEdits[aodPkgPath] = {};
+    pkgTextEdits[aodPkgPath][aodThemeXmlPath] = aodThemeXmlRaw;
+  }
+  const aodClockNumInput = document.getElementById("aodClockNumInput");
+  if (aodClockNumInput) aodClockNumInput.addEventListener("input", () => {
+    setAodItemAttr("clock", aodClockNumInput.value.trim() || "0");
+  });
+  const aodBgNumInput = document.getElementById("aodBgNumInput");
+  if (aodBgNumInput) aodBgNumInput.addEventListener("input", () => {
+    setAodItemAttr("background", aodBgNumInput.value.trim() || "0");
+  });
+  const aodBgReplaceBtn = document.getElementById("aodBgReplaceBtn");
+  const aodBgReplaceInput = document.getElementById("aodBgReplaceInput");
+  if (aodBgReplaceBtn && aodBgReplaceInput) {
+    aodBgReplaceBtn.addEventListener("click", () => aodBgReplaceInput.click());
+    aodBgReplaceInput.addEventListener("change", async (e) => {
+      if (!e.target.files.length) return;
+      const f = e.target.files[0];
+      if (!iconReplacements[aodPkgPath]) iconReplacements[aodPkgPath] = {};
+      for (const p of aodDigitBgPaths) iconReplacements[aodPkgPath][p] = f;
+      document.getElementById("aodBgThumb").innerHTML = `<img src="${await blobToDataURL(f)}">`;
+      const st = document.getElementById("aodBgStatus");
+      st.textContent = "Đã chọn ảnh mới — nhớ bấm Xuất file theme";
+      st.className = "status changed";
+      toast("Đã đổi ảnh nền AOD" + (aodDigitBgPaths.length > 1 ? ` (áp dụng cho cả ${aodDigitBgPaths.length} bản)` : ""), "ok");
+    });
+  }
   const swatchWrapAod = document.getElementById("aodPresetSwatches");
   if (swatchWrapAod) {
     swatchWrapAod.innerHTML = AOD_PRESET_COLORS.map(c => `<div class="swatch" data-c="${c}" style="background:${c}" title="Màu mẫu"></div>`).join("");
