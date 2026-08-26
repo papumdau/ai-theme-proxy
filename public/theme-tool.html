@@ -157,7 +157,7 @@
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
 
-  .wallpaper-item { display: flex; gap: 14px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .wallpaper-item { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
   .wallpaper-item:last-child { border-bottom: none; }
   .wallpaper-thumb {
     width: 72px; height: 72px; border-radius: 8px; background: var(--panel-2);
@@ -165,9 +165,9 @@
     display: flex; align-items: center; justify-content: center; position: relative;
   }
   .wallpaper-thumb img, .wallpaper-thumb video { width: 100%; height: 100%; object-fit: cover; }
-  .wallpaper-info { flex: 1; min-width: 0; }
+  .wallpaper-info { flex: 1 1 140px; min-width: 140px; }
   .wallpaper-info .name { font-size: 13px; font-weight: 500; }
-  .wallpaper-info .path { font-size: 11px; color: var(--text-mute); font-family: monospace; margin-top: 2px; word-break: break-all; }
+  .wallpaper-info .path { font-size: 11px; color: var(--text-mute); font-family: monospace; margin-top: 2px; word-break: break-word; overflow-wrap: anywhere; }
   .wallpaper-info .status { font-size: 11px; margin-top: 4px; }
   .status.changed { color: var(--ok); }
   .status.missing { color: var(--text-mute); }
@@ -313,7 +313,8 @@
   .drawer-cell img { width: 36px; max-width: 100%; height: auto; aspect-ratio: 1; border-radius: 10px; background: rgba(255,255,255,0.08); }
   .drawer-cell .dname { font-size: 8px; color: #fff; text-align: center; max-width: 48px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .preview-wrap { display: flex; flex-direction: column; align-items: center; gap: 16px; }
-  .overview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 14px; width: 100%; margin-top: 6px; }
+  .overview-grid { display: grid; grid-template-columns: 1fr; gap: 14px; width: 100%; margin-top: 6px; }
+  @media (min-width: 640px) { .overview-grid { grid-template-columns: repeat(3, 1fr); } }
   .overview-card { text-align: center; }
   .overview-phone-mini { width: 100%; aspect-ratio: 9/19; border-radius: 20px; border: 4px solid #0a0a0a; background: #000; background-size: cover; background-position: center; position: relative; overflow: hidden; margin-bottom: 6px; }
   .overview-phone-mini .lbl { font-size: 11px; color: var(--text-dim); }
@@ -355,7 +356,6 @@
       <div class="tab-main" data-group="style">🎨 Màu &amp; Hiệu ứng</div>
       <div class="tab-main" data-group="preview">📱 Xem trước</div>
       <div class="tab-main" data-group="export">📦 Xuất &amp; Kiểm tra</div>
-      <div class="tab-main" data-group="advanced">⚙️ Nâng cao</div>
     </div>
     <div class="tabs-sub" id="tabsSub"></div>
 
