@@ -116,9 +116,9 @@
   .panel { display: none; }
   .panel.active { display: block; }
 
-  .card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; margin-bottom: 16px; }
-  .card h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; color: var(--text); }
-  .card .card-hint { font-size: 12px; color: var(--text-mute); margin-bottom: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-bottom: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.15); }
+  .card h3 { margin: 0 0 4px; font-size: 15px; font-weight: 700; color: var(--text); }
+  .card .card-hint { font-size: 12px; color: var(--text-mute); margin-bottom: 14px; line-height: 1.5; }
   .field { margin-bottom: 14px; }
   .field:last-child { margin-bottom: 0; }
   .field label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 5px; }
@@ -138,8 +138,8 @@
   .field input[type=range] { width: 100%; }
   .field .row { display: flex; align-items: center; gap: 12px; }
   .field .range-val { font-size: 12px; color: var(--text-dim); min-width: 34px; text-align: right; }
-  .readonly-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
-  .readonly-row:last-child { border-bottom: none; }
+  .readonly-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-radius: 8px; font-size: 12px; }
+  .readonly-row:nth-child(even) { background: var(--panel-2); }
   .mini-lock-preview { width: 100%; max-width: 220px; aspect-ratio: 9/16; margin: 0 auto; border-radius: 20px; background: linear-gradient(160deg, #2a2a35, #454558); background-size: cover; background-position: center; display: flex; flex-direction: column; align-items: center; padding: 20% 12px 0; overflow: hidden; }
   .mini-lock-clock { font-size: 44px; font-weight: 200; letter-spacing: -2px; line-height: 1; text-shadow: 0 2px 10px rgba(0,0,0,0.35); }
   .mini-lock-clock.style-glass { font-weight: 700; font-size: 64px; color: rgba(255,255,255,0.28); text-shadow: 0 1px 0 rgba(255,255,255,0.35), 0 -1px 4px rgba(0,0,0,0.25); }
@@ -158,20 +158,22 @@
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
 
-  .wallpaper-item { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
-  .wallpaper-item:last-child { border-bottom: none; }
+  .wallpaper-item { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; padding: 12px; border-radius: 12px; background: var(--panel-2); border: 1px solid transparent; margin-bottom: 8px; transition: border-color 0.15s; }
+  .wallpaper-item:hover { border-color: var(--border-strong); }
+  .wallpaper-item:last-child { margin-bottom: 0; }
   .wallpaper-thumb {
-    width: 72px; height: 72px; border-radius: 8px; background: var(--panel-2);
+    width: 72px; height: 72px; border-radius: 10px; background: var(--panel);
     border: 1px solid var(--border-strong); overflow: hidden; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center; position: relative;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
   }
   .wallpaper-thumb img, .wallpaper-thumb video { width: 100%; height: 100%; object-fit: cover; }
   .wallpaper-info { flex: 1 1 140px; min-width: 140px; }
-  .wallpaper-info .name { font-size: 13px; font-weight: 500; }
+  .wallpaper-info .name { font-size: 13px; font-weight: 600; }
   .wallpaper-info .path { font-size: 11px; color: var(--text-mute); font-family: monospace; margin-top: 2px; word-break: break-word; overflow-wrap: anywhere; }
-  .wallpaper-info .status { font-size: 11px; margin-top: 4px; }
+  .wallpaper-info .status { font-size: 11px; margin-top: 4px; font-weight: 500; }
   .status.changed { color: var(--ok); }
-  .status.missing { color: var(--text-mute); }
+  .status.missing { color: #e0a800; }
 
   .search-row { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
   .search-row input { flex: 1; min-width: 180px; }
@@ -538,12 +540,18 @@
         <option value="sepia">Vintage nâu cổ điển (sepia)</option>
         <option value="posterize">Giảm số lượng màu (poster hoá)</option>
         <option value="bg-swap-keep-color">Đổi nền sáng↔tối, giữ nguyên chi tiết có màu</option>
+        <option value="round-only">Chỉ bo góc ảnh (không đổi màu)</option>
       </select>
     </div>
     <div id="wpFilterColorFields">
       <div class="grid2">
         <div class="field"><label>Màu 1 (tối/bóng)</label><input type="color" id="wpFilterColor1" value="#1a1a2e"></div>
         <div class="field"><label>Màu 2 (sáng/highlight)</label><input type="color" id="wpFilterColor2" value="#e8622f"></div>
+      </div>
+    </div>
+    <div id="wpFilterRoundField" style="display:none">
+      <div class="field"><label>Độ bo góc: <span id="wpFilterRoundValue">10</span>% (0 = vuông, cao = tròn nhiều)</label>
+        <input type="range" id="wpFilterRoundRange" min="0" max="50" value="10" style="width:100%">
       </div>
     </div>
     <div class="draw-actions">
@@ -2156,6 +2164,32 @@ async function applyRoundedMask(srcBlobOrDataUrl, radiusPercent, size) {
   const side = Math.min(img.width, img.height);
   const sx = (img.width - side) / 2, sy = (img.height - side) / 2;
   ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+  return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), "image/png"));
+}
+async function applyRoundedMaskRect(srcBlobOrDataUrl, radiusPercent) {
+  // Giu nguyen ty le anh that (khong ep vuong) - dung cho hinh nen, khac voi applyRoundedMask danh cho icon
+  const dataUrl = (typeof srcBlobOrDataUrl === "string") ? srcBlobOrDataUrl : await blobToDataURL(srcBlobOrDataUrl);
+  const img = await new Promise((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = reject;
+    im.src = dataUrl;
+  });
+  const w = img.width, h = img.height;
+  const canvas = document.createElement("canvas");
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  const r = (radiusPercent / 100) * (Math.min(w, h) / 2);
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(0, 0, w, h, r);
+  } else {
+    ctx.moveTo(r, 0); ctx.arcTo(w, 0, w, h, r); ctx.arcTo(w, h, 0, h, r);
+    ctx.arcTo(0, h, 0, 0, r); ctx.arcTo(0, 0, w, 0, r);
+  }
+  ctx.closePath();
+  ctx.clip();
+  ctx.drawImage(img, 0, 0, w, h);
   return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), "image/png"));
 }
 function resizeImageTo192(file) {
@@ -4625,6 +4659,10 @@ document.getElementById("wpFilterCancelBtn").addEventListener("click", () => {
 });
 document.getElementById("wpFilterKindSelect").addEventListener("change", (e) => {
   document.getElementById("wpFilterColorFields").style.display = (e.target.value === "duotone" || e.target.value === "grayscale-tint") ? "block" : "none";
+  document.getElementById("wpFilterRoundField").style.display = e.target.value === "round-only" ? "block" : "none";
+});
+document.getElementById("wpFilterRoundRange").addEventListener("input", (e) => {
+  document.getElementById("wpFilterRoundValue").textContent = e.target.value;
 });
 document.getElementById("wpFilterApplyBtn").addEventListener("click", async () => {
   pushUndoSnapshot();
@@ -4633,6 +4671,7 @@ document.getElementById("wpFilterApplyBtn").addEventListener("click", async () =
   const kind = document.getElementById("wpFilterKindSelect").value;
   const color1 = document.getElementById("wpFilterColor1").value;
   const color2 = document.getElementById("wpFilterColor2").value;
+  const radiusPercent = Number(document.getElementById("wpFilterRoundRange").value);
   const targets = getWpFilterTargets();
   const checkedIds = Array.from(document.querySelectorAll(".wp-filter-check:checked")).map(c => c.value);
   let done = 0;
@@ -4647,7 +4686,9 @@ document.getElementById("wpFilterApplyBtn").addEventListener("click", async () =
         srcBlob = carouselReplacements[firstPath] || await mainZip.files[firstPath].async("blob");
       }
       const dataUrl = await blobToDataURL(srcBlob);
-      const outBlob = await applyFilterToImage(dataUrl, kind, color1, color2);
+      const outBlob = kind === "round-only"
+        ? await applyRoundedMaskRect(dataUrl, radiusPercent)
+        : await applyFilterToImage(dataUrl, kind, color1, color2);
       if (t.type === "wallpaper") {
         wallpaperReplacements[t.base] = outBlob;
       } else {
