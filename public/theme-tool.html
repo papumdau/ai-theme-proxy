@@ -1994,6 +1994,7 @@ async function renderIconGrid(query) {
         <button class="btn ai-btn" data-name="${name}">AI tạo</button>
         <button class="btn bgremove-btn" data-name="${name}">Xoá nền</button>
         ${isNinePatch ? `<button class="btn np-btn" data-name="${name}">Vùng co giãn</button>` : ""}
+        ${repl[name] ? `<button class="btn revert-btn" data-name="${name}">↺ Về ảnh gốc</button>` : ""}
         <button class="btn del-btn" data-name="${name}">Xoá</button>
       </div>
     `;
@@ -2028,6 +2029,16 @@ async function renderIconGrid(query) {
       pushUndoSnapshot();
       pkgDeleted[currentPkgPath].add(btn.dataset.name);
       toast(`Đã xoá icon "${btn.dataset.name}" — nhớ bấm Xuất file theme`, "ok");
+      renderIconGrid(query);
+    });
+  });
+  grid.querySelectorAll(".revert-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      pushUndoSnapshot();
+      delete repl[btn.dataset.name];
+      const cacheKey = currentPkgPath + "::" + btn.dataset.name;
+      delete iconBlobCache[cacheKey];
+      toast(`Đã khôi phục "${btn.dataset.name}" về ảnh gốc trong theme`, "ok");
       renderIconGrid(query);
     });
   });
@@ -3469,62 +3480,46 @@ async function openAiOverlay(type, a, b) {
   if (type === "icon") {
     aiTargetPkg = a; aiTargetIconName = b;
     label.textContent = "Icon: " + b;
-    costHint.textContent = "AI sẽ dựa vào icon hiện tại (xem bên dưới) để thiết kế lại theo mô tả — ảnh vuông 1024x1024, tự chỉnh về 192x192.";
+    costHint.textContent = "AI sẽ dựa vào icon GỐC của theme (chưa qua chỉnh sửa nào) để thiết kế lại theo mô tả — ảnh vuông 1024x1024, tự chỉnh về 192x192.";
     const pkg = nestedPackages[a];
-    const repl = iconReplacements[a] && iconReplacements[a][b];
     const cacheKey = a + "::" + b;
     try {
-      aiReferenceDataUrl = repl ? await blobToDataURL(repl) : (iconBlobCache[cacheKey] || await safeDataUrlFromZipEntry(pkg.zip, b));
+      aiReferenceDataUrl = iconBlobCache[cacheKey] || await safeDataUrlFromZipEntry(pkg.zip, b);
     } catch (err) { aiReferenceDataUrl = null; }
   } else if (type === "wallpaper-variant") {
     aiTargetWpName = a; aiTargetWpModel = b;
     label.textContent = "Hình nền (" + b + "): " + a;
-    costHint.textContent = "AI sẽ dựa vào hình nền hiện tại (xem bên dưới) để thiết kế lại — ảnh dọc 1024x1536.";
+    costHint.textContent = "AI sẽ dựa vào hình nền GỐC (chưa qua chỉnh sửa) để thiết kế lại — ảnh dọc 1024x1536.";
     try {
-      const replMap = wallpaperVariantReplacements[b] || {};
-      if (replMap[a]) {
-        aiReferenceDataUrl = await blobToDataURL(replMap[a]);
-      } else {
-        const path = (wallpaperVariants[b] || {})[a];
-        if (path) aiReferenceDataUrl = await blobToDataURL(await mainZip.files[path].async("blob"));
-      }
+      const path = (wallpaperVariants[b] || {})[a];
+      if (path) aiReferenceDataUrl = await blobToDataURL(await mainZip.files[path].async("blob"));
     } catch (err) { aiReferenceDataUrl = null; }
   } else if (type === "fp-icon") {
     label.textContent = "Icon vân tay";
-    costHint.textContent = "AI vẽ ảnh vuông 1024x1024, tool tự đóng gói lại thành .svg như cách tải ảnh tay vẫn làm.";
+    costHint.textContent = "AI vẽ ảnh vuông 1024x1024 dựa trên icon GỐC (chưa qua chỉnh sửa), tool tự đóng gói lại thành .svg như cách tải ảnh tay vẫn làm.";
     try {
-      if (fpIconReplacement) {
-        aiReferenceDataUrl = await blobToDataURL(fpIconReplacement);
-      } else {
-        const text = await mainZip.files[fpIconPath].async("text");
-        aiReferenceDataUrl = await svgTextToPngDataUrl(text, 512);
-      }
+      const text = await mainZip.files[fpIconPath].async("text");
+      aiReferenceDataUrl = await svgTextToPngDataUrl(text, 512);
     } catch (err) { aiReferenceDataUrl = null; }
   } else if (type === "control-tile-bg") {
     label.textContent = "Hình dạng ô Trung tâm điều khiển";
-    costHint.textContent = "Gợi ý mô tả: \"ô bo tròn kiểu viên thuốc, nền đơn sắc\" — AI sẽ dựa vào hình dạng hiện tại để vẽ lại. Ảnh vuông 1024x1024, chỉ đổi hình dạng/màu ô, không gộp nhóm ô được.";
+    costHint.textContent = "Gợi ý mô tả: \"ô bo tròn kiểu viên thuốc, nền đơn sắc\" — AI sẽ dựa vào hình dạng GỐC (chưa qua chỉnh sửa) để vẽ lại. Ảnh vuông 1024x1024, chỉ đổi hình dạng/màu ô, không gộp nhóm ô được.";
     try {
-      const repl = iconReplacements[systemuiPkgPath] && iconReplacements[systemuiPkgPath][controlTileBgPath];
-      aiReferenceDataUrl = repl ? await blobToDataURL(repl) : await blobToDataURL(await nestedPackages[systemuiPkgPath].zip.files[controlTileBgPath].async("blob"));
+      aiReferenceDataUrl = await blobToDataURL(await nestedPackages[systemuiPkgPath].zip.files[controlTileBgPath].async("blob"));
     } catch (err) { aiReferenceDataUrl = null; }
   } else if (type === "charging-icon") {
     label.textContent = "Icon tia sét (sạc pin)";
-    costHint.textContent = "AI sẽ dựa vào icon tia sét hiện tại (xem bên dưới) để thiết kế lại theo mô tả — ảnh vuông 1024x1024.";
+    costHint.textContent = "AI sẽ dựa vào icon tia sét GỐC (chưa qua chỉnh sửa) để thiết kế lại theo mô tả — ảnh vuông 1024x1024.";
     try {
-      const repl = chargingReplacements[chargingIconPath];
-      aiReferenceDataUrl = repl ? await blobToDataURL(repl) : await blobToDataURL(await mainZip.files[chargingIconPath].async("blob"));
+      aiReferenceDataUrl = await blobToDataURL(await mainZip.files[chargingIconPath].async("blob"));
     } catch (err) { aiReferenceDataUrl = null; }
   } else {
     aiTargetWpName = a; aiTargetWpModel = "phone";
     label.textContent = "Hình nền: " + a;
-    costHint.textContent = "AI sẽ dựa vào hình nền hiện tại (xem bên dưới) để thiết kế lại — ảnh dọc 1024x1536.";
+    costHint.textContent = "AI sẽ dựa vào hình nền GỐC (chưa qua chỉnh sửa) để thiết kế lại — ảnh dọc 1024x1536.";
     try {
-      if (wallpaperReplacements[a]) {
-        aiReferenceDataUrl = await blobToDataURL(wallpaperReplacements[a]);
-      } else {
-        const path = wallpaperEntries[a];
-        if (path) aiReferenceDataUrl = await blobToDataURL(await mainZip.files[path].async("blob"));
-      }
+      const path = wallpaperEntries[a];
+      if (path) aiReferenceDataUrl = await blobToDataURL(await mainZip.files[path].async("blob"));
     } catch (err) { aiReferenceDataUrl = null; }
   }
   aiUploadedReferenceDataUrl = null;
@@ -4343,7 +4338,7 @@ document.getElementById("batchAiApplyBtn").addEventListener("click", async () =>
     if (batchAiUploadedRef) {
       refUrl = batchAiUploadedRef;
     } else if (useRef) {
-      try { refUrl = repl[batchAiSampleName] ? await blobToDataURL(repl[batchAiSampleName]) : await safeDataUrlFromZipEntry(pkg.zip, batchAiSampleName); } catch (e) {}
+      try { refUrl = await safeDataUrlFromZipEntry(pkg.zip, batchAiSampleName); } catch (e) {}
     }
     const blob = await generateAiImage(promptText, "1024x1024", "1:1", refUrl, true);
     btn.disabled = false;
@@ -4379,7 +4374,7 @@ document.getElementById("batchAiApplyBtn").addEventListener("click", async () =>
           refUrl = batchAiUploadedRef;
         } else if (useRef) {
           try {
-            refUrl = repl[name] ? await blobToDataURL(repl[name]) : await safeDataUrlFromZipEntry(pkg.zip, name);
+            refUrl = await safeDataUrlFromZipEntry(pkg.zip, name);
           } catch (e) { refUrl = null; }
         }
         const blob = await generateAiImage(promptText, "1024x1024", "1:1", refUrl, true);
