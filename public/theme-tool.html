@@ -873,9 +873,27 @@ async function handleFile(file) {
   const lockscreenTreePaths = paths.filter(p => p.startsWith("unlock/lockscreen/") && !mainZip.files[p].dir);
   if (lockscreenTreePaths.length > 0) {
     const subfolders = new Set();
+    const looseFiles = [];
     for (const p of lockscreenTreePaths) {
       const rest = p.slice("unlock/lockscreen/".length);
       if (rest.includes("/")) subfolders.add(rest.split("/")[0]);
+      else looseFiles.push(rest);
+    }
+    // Anh trang tri nam THANG trong unlock/lockscreen/ (khong co thu muc con) - vi du bu.png, clock_bg.png, pou1.png...
+    // Truoc day bi bo sot hoan toan vi code chi bat duoc file trong thu muc con.
+    const pngLoose = looseFiles.filter(n => n.toLowerCase().endsWith(".png")).sort();
+    if (pngLoose.length > 0) {
+      const prefix = "unlock/lockscreen/";
+      const fakeFilesLoose = {};
+      for (const rel of looseFiles) fakeFilesLoose[rel] = mainZip.files[prefix + rel];
+      nestedPackages["__virtual__" + prefix] = {
+        zip: { files: fakeFilesLoose },
+        names: pngLoose,
+        allNames: looseFiles,
+        label: "Đồng hồ & trang trí màn khoá",
+        isVirtual: true,
+        virtualPrefix: prefix,
+      };
     }
     for (const sub of subfolders) {
       const prefix = "unlock/lockscreen/" + sub + "/";
@@ -2747,8 +2765,8 @@ document.getElementById("recolorApplyBtn").addEventListener("click", async () =>
   if (!iconReplacements[currentPkgPath]) iconReplacements[currentPkgPath] = {};
   const repl = iconReplacements[currentPkgPath];
   const activeNames = (selectMode && selectedIcons.size > 0)
-    ? Array.from(selectedIcons).filter(n => !deleted.has(n) && n.toLowerCase().endsWith(".png"))
-    : pkg.names.filter(n => !deleted.has(n) && n.toLowerCase().endsWith(".png"));
+    ? Array.from(selectedIcons).filter(n => !deleted.has(n) && n.toLowerCase().endsWith(".png") && !isBgTemplateFile(n))
+    : pkg.names.filter(n => !deleted.has(n) && n.toLowerCase().endsWith(".png") && !isBgTemplateFile(n));
 
   for (const name of activeNames) {
     const src = repl[name] ? await blobToDataURL(repl[name]) : await safeDataUrlFromZipEntry(pkg.zip, name);
@@ -4247,13 +4265,18 @@ let batchAiSampleName = null;
 let batchAiUploadedRef = null;
 let batchAiSampleBlob = null;
 
+function isBgTemplateFile(name) {
+  // Icon kieu moi (adaptive icon) tach lop: background.png la khoi nen dac, khong phai hinh ve -
+  // doi mau/loc hang loat vao file nay se bien ca icon thanh 1 o vuong 1 mau, mat het chi tiet.
+  return name.split("/").pop().toLowerCase() === "background.png";
+}
 function getBatchTargetNames(query) {
   const pkg = nestedPackages[currentPkgPath];
   const deleted = pkgDeleted[currentPkgPath] || new Set();
   if (selectMode && selectedIcons.size > 0) {
-    return Array.from(selectedIcons).filter(n => !deleted.has(n) && n.toLowerCase().endsWith(".png"));
+    return Array.from(selectedIcons).filter(n => !deleted.has(n) && n.toLowerCase().endsWith(".png") && !isBgTemplateFile(n));
   }
-  return pkg.names.filter(n => !deleted.has(n) && n.toLowerCase().endsWith(".png") && (!query || n.toLowerCase().includes(query)));
+  return pkg.names.filter(n => !deleted.has(n) && n.toLowerCase().endsWith(".png") && !isBgTemplateFile(n) && (!query || n.toLowerCase().includes(query)));
 }
 
 function renderSelectModeBar(matches) {
@@ -4810,7 +4833,7 @@ document.getElementById("filterApplyBtn").addEventListener("click", async () => 
   const pkg = nestedPackages[currentPkgPath];
   const deleted = pkgDeleted[currentPkgPath] || new Set();
   const usingSelection = selectMode && selectedIcons.size > 0;
-  const names = usingSelection ? Array.from(selectedIcons) : pkg.names.filter(n => !deleted.has(n) && n.toLowerCase().endsWith(".png"));
+  const names = usingSelection ? Array.from(selectedIcons).filter(n => !isBgTemplateFile(n)) : pkg.names.filter(n => !deleted.has(n) && n.toLowerCase().endsWith(".png") && !isBgTemplateFile(n));
   if (!iconReplacements[currentPkgPath]) iconReplacements[currentPkgPath] = {};
   const repl = iconReplacements[currentPkgPath];
   const btn = document.getElementById("filterApplyBtn");
@@ -5030,18 +5053,25 @@ document.getElementById("exportBtn").addEventListener("click", async () => {
         continue;
       }
       let handledAsVirtual = false;
+      let bestVKey = null, bestLen = -1;
       for (const vKey of Object.keys(nestedPackages)) {
         const vpkg = nestedPackages[vKey];
         if (!vpkg.isVirtual || !p.startsWith(vpkg.virtualPrefix)) continue;
+        if (vpkg.virtualPrefix.length > bestLen) { bestLen = vpkg.virtualPrefix.length; bestVKey = vKey; }
+      }
+      if (bestVKey) {
+        const vpkg = nestedPackages[bestVKey];
         const rel = p.slice(vpkg.virtualPrefix.length);
-        const deletedSet = pkgDeleted[vKey] || new Set();
-        if (deletedSet.has(rel)) { handledAsVirtual = true; break; }
-        const repl = (iconReplacements[vKey] || {})[rel];
-        if (repl) {
-          outZip.file(p, await repl.arrayBuffer());
+        const deletedSet = pkgDeleted[bestVKey] || new Set();
+        if (deletedSet.has(rel)) {
           handledAsVirtual = true;
+        } else {
+          const repl = (iconReplacements[bestVKey] || {})[rel];
+          if (repl) {
+            outZip.file(p, await repl.arrayBuffer());
+            handledAsVirtual = true;
+          }
         }
-        break;
       }
       if (handledAsVirtual) continue;
       if (carouselReplacements[p]) {
