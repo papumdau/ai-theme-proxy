@@ -140,8 +140,9 @@
   .field .range-val { font-size: 12px; color: var(--text-dim); min-width: 34px; text-align: right; }
   .readonly-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
   .readonly-row:last-child { border-bottom: none; }
-  .mini-lock-preview { width: 100%; max-width: 220px; aspect-ratio: 9/16; margin: 0 auto; border-radius: 20px; background: linear-gradient(160deg, #2a2a35, #454558); background-size: cover; background-position: center; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; padding: 0 12px; }
-  .mini-lock-clock { font-size: 44px; font-weight: 200; letter-spacing: -2px; line-height: 1; }
+  .mini-lock-preview { width: 100%; max-width: 220px; aspect-ratio: 9/16; margin: 0 auto; border-radius: 20px; background: linear-gradient(160deg, #2a2a35, #454558); background-size: cover; background-position: center; display: flex; flex-direction: column; align-items: center; padding: 20% 12px 0; overflow: hidden; }
+  .mini-lock-clock { font-size: 44px; font-weight: 200; letter-spacing: -2px; line-height: 1; text-shadow: 0 2px 10px rgba(0,0,0,0.35); }
+  .mini-lock-clock.style-glass { font-weight: 700; font-size: 64px; color: rgba(255,255,255,0.28); text-shadow: 0 1px 0 rgba(255,255,255,0.35), 0 -1px 4px rgba(0,0,0,0.25); }
   .mini-lock-date { font-size: 12px; color: rgba(255,255,255,0.85); margin-top: 8px; text-shadow: 0 1px 4px rgba(0,0,0,0.4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
   .unlock-demo-box { width: 100%; max-width: 220px; aspect-ratio: 9/16; margin: 12px auto 0; border-radius: 20px; overflow: hidden; position: relative; background: #1a1a22; perspective: 800px; }
   .unlock-demo-layer { position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 20px; font-size: 12px; color: #fff; }
@@ -1275,12 +1276,15 @@ function renderLockTab() {
   const el = document.getElementById("panel-lock");
   let html = `<div class="card">
     <h3>Xem trước nhanh</h3>
-    <div class="card-hint">Cập nhật ngay khi anh đổi màu/độ đậm bên dưới. Có thể tải lên ảnh chụp màn hình khoá THẬT của máy anh để so sánh trực tiếp (ảnh này chỉ để xem, không đưa vào theme khi xuất file).</div>
+    <div class="card-hint">Cập nhật ngay khi anh đổi màu/độ đậm bên dưới. Dùng luôn hình nền màn khoá thật của theme làm nền — có thể tải lên ảnh chụp màn hình khoá THẬT của máy anh để so sánh trực tiếp (ảnh này chỉ để xem, không đưa vào theme khi xuất file).</div>
     <div class="mini-lock-preview" id="miniLockPreview">
       <div class="mini-lock-clock" id="miniLockClock">08:01</div>
       <div class="mini-lock-date" id="miniLockDate">Th 2, ngày 25 tháng 8</div>
     </div>
-    <button class="btn small" id="uploadRefLockBtn" style="margin-top:10px">Tải ảnh màn khoá thật của anh lên để so sánh</button>
+    <div class="row" style="gap:8px;margin-top:10px">
+      <button class="btn small" id="uploadRefLockBtn" style="flex:1">Tải ảnh màn khoá thật lên so sánh</button>
+      <button class="btn small" id="toggleClockStyleBtn" style="flex:1">Kiểu chữ lớn trong suốt</button>
+    </div>
     <input type="file" id="refLockInput" accept="image/*" style="display:none">
   </div>`;
 
@@ -1322,6 +1326,22 @@ function renderLockTab() {
   updateMiniLockPreview();
   if (refLockPhotoUrl) {
     document.getElementById("miniLockPreview").style.backgroundImage = `url(${refLockPhotoUrl})`;
+  } else {
+    // Mac dinh dung hinh nen khoa THAT cua theme thay vi mau xam trong rong
+    (async () => {
+      try {
+        let blob = wallpaperReplacements["unlock_live_wallpaper.jpg"];
+        if (!blob) {
+          const path = wallpaperEntries["unlock_live_wallpaper.jpg"];
+          if (path) blob = await mainZip.files[path].async("blob");
+        }
+        if (blob) {
+          const url = await blobToDataURL(blob);
+          const previewEl = document.getElementById("miniLockPreview");
+          if (previewEl) previewEl.style.backgroundImage = `url(${url})`;
+        }
+      } catch (e) { /* khong co thi giu mau nen mac dinh */ }
+    })();
   }
   document.getElementById("uploadRefLockBtn").addEventListener("click", () => document.getElementById("refLockInput").click());
   document.getElementById("refLockInput").addEventListener("change", async (e) => {
@@ -1329,6 +1349,9 @@ function renderLockTab() {
     refLockPhotoUrl = await blobToDataURL(e.target.files[0]);
     document.getElementById("miniLockPreview").style.backgroundImage = `url(${refLockPhotoUrl})`;
     toast("Đã tải ảnh so sánh — chỉ để xem, không đưa vào theme", "ok");
+  });
+  document.getElementById("toggleClockStyleBtn").addEventListener("click", () => {
+    document.getElementById("miniLockClock").classList.toggle("style-glass");
   });
 
   const colorInput = document.getElementById("clockColor");
