@@ -625,6 +625,7 @@ let onetakeFiles = {}; // { day: "duong/dan/that.jpg", night: ..., dusk: ... }
 let onetakeReplacements = {};
 let descXmlRaw = "";
 let descFields = {};
+let descExtraJson = null; // { extraContentFlag, en: {title, briefInfo}, ... } - ten hien thi that theo ngon ngu may
 let wallpaperEntries = {};
 let wallpaperVariants = { phone: {}, foldable: {}, tablet: {} };
 let currentPreviewModel = "phone";
@@ -1022,6 +1023,17 @@ function parseDescXml() {
   }
   const mv = descXmlRaw.match(/<min_feature_version>([\s\S]*?)<\/min_feature_version>/);
   descFields["min_feature_version"] = mv ? mv[1] : "";
+  descExtraJson = null;
+  const em = descXmlRaw.match(/<extra>([\s\S]*?)<\/extra>/);
+  if (em) {
+    try { descExtraJson = JSON.parse(em[1]); } catch (e) { descExtraJson = null; }
+  }
+}
+function updateDescExtraField(locale, key, value) {
+  if (!descExtraJson) return;
+  if (!descExtraJson[locale]) descExtraJson[locale] = {};
+  descExtraJson[locale][key] = value;
+  descXmlRaw = descXmlRaw.replace(/<extra>[\s\S]*?<\/extra>/, `<extra>${JSON.stringify(descExtraJson)}</extra>`);
 }
 
 function updateDescXmlField(tag, value) {
@@ -1059,6 +1071,22 @@ function renderInfoTab() {
       html += `</div>`;
     }
     html += '</div>';
+    if (descExtraJson) {
+      const locales = Object.keys(descExtraJson).filter(k => k !== "extraContentFlag" && typeof descExtraJson[k] === "object");
+      if (locales.length) {
+        html += '<div class="card" style="border-left:3px solid var(--accent)"><h3>⚠️ Tên hiển thị theo ngôn ngữ máy</h3><div class="card-hint">Theme này giấu riêng tên/mô tả khác cho từng ngôn ngữ trong 1 chỗ ẩn — máy Honor sẽ ưu tiên hiện tên NÀY thay vì ô "Tên theme" phía trên nếu máy để đúng ngôn ngữ đó. Đổi tên theme thì nhớ đổi luôn ở đây, không thì máy vẫn hiện tên cũ.</div>';
+        for (const loc of locales) {
+          const localeLabel = loc === "en" ? "Tiếng Anh" : loc === "vi" ? "Tiếng Việt" : loc;
+          if ("title" in descExtraJson[loc]) {
+            html += `<div class="field"><label>Tên theme (${localeLabel})</label><input type="text" data-extra-locale="${loc}" data-extra-key="title" value="${escapeAttr(descExtraJson[loc].title || "")}"></div>`;
+          }
+          if ("briefInfo" in descExtraJson[loc]) {
+            html += `<div class="field"><label>Mô tả ngắn (${localeLabel})</label><textarea data-extra-locale="${loc}" data-extra-key="briefInfo">${escapeHtml(descExtraJson[loc].briefInfo || "")}</textarea></div>`;
+          }
+        }
+        html += '</div>';
+      }
+    }
     html += '<div class="card"><h3>Chỉ xem — không nên tự đổi</h3>';
     for (const [tag, label] of readonly) {
       html += `<div class="readonly-row"><span class="k">${label}</span><span class="v">${escapeHtml(descFields[tag] || "(không có)")}</span></div>`;
@@ -1115,6 +1143,9 @@ function renderInfoTab() {
   document.getElementById("panel-info").innerHTML = html;
   document.querySelectorAll('#panel-info [data-tag]').forEach(el => {
     el.addEventListener("input", () => updateDescXmlField(el.dataset.tag, el.value));
+  });
+  document.querySelectorAll('#panel-info [data-extra-locale]').forEach(el => {
+    el.addEventListener("input", () => updateDescExtraField(el.dataset.extraLocale, el.dataset.extraKey, el.value));
   });
   document.getElementById("aiProviderSelect").addEventListener("change", (e) => {
     document.getElementById("openaiKeyBlock").style.display = e.target.value === "openai" ? "block" : "none";
