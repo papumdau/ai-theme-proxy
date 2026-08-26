@@ -1087,15 +1087,13 @@ const WALLPAPER_LABELS = {
   "fullAod_live_wallpaper.jpg": "Hình cho Always On Display",
   "video_live_wallpaper.mp4": "Video hình nền động (màn khoá)",
 };
-const CAROUSEL_PERIOD_LABELS = { day: "☀️ Ngày", dusk: "🌇 Hoàng hôn", night: "🌙 Đêm" };
-const CAROUSEL_FILE_LABELS = {
-  home_dark: "Màn hình chính (bản tối)",
-  home_light: "Màn hình chính (bản sáng)",
-  lock_dark: "Màn hình khoá (bản tối)",
-  lock_light: "Màn hình khoá (bản sáng)",
-  fullAod_live_wallpaper: "Màn hình luôn bật (AOD)",
-  unlock_depth_effect_wallpaper_0: "Hiệu ứng chiều sâu lúc mở khoá",
-};
+const CAROUSEL_PERIOD_LABELS = { day: "☀️ Ngày", dusk: "🌇 Hoàng hôn", night: "🌙 Đêm" }; // van dung cho onetake AOD (that su co 3 anh khac nhau, khong gop duoc)
+const CAROUSEL_SIMPLE_ITEMS = [
+  { id: "home", label: "Màn hình chính", hasLightDark: true, keyLight: "home_light", keyDark: "home_dark" },
+  { id: "lock", label: "Màn hình khoá", hasLightDark: true, keyLight: "lock_light", keyDark: "lock_dark" },
+  { id: "aod", label: "Màn hình luôn bật (AOD)", hasLightDark: false, keyShared: "fullAod_live_wallpaper" },
+  { id: "depth", label: "Hiệu ứng chiều sâu lúc mở khoá", hasLightDark: false, keyShared: "unlock_depth_effect_wallpaper_0" },
+];
 
 let extraWallpaperPages = 0;
 
@@ -1104,14 +1102,9 @@ async function renderWallpaperTab(model) {
   const el = document.getElementById("panel-wallpaper");
   const hasVariants = Object.keys(wallpaperVariants.foldable || {}).length || Object.keys(wallpaperVariants.tablet || {}).length;
   el.innerHTML = (carouselMetaJson ? `<div class="card" style="border-left:3px solid var(--accent)">
-      <h3>🌗 Hình nền đổi theo giờ trong ngày</h3>
-      <div class="card-hint">Theme này có bộ ảnh riêng cho Ngày / Hoàng hôn / Đêm (máy tự đổi theo giờ thật) — nằm riêng, không ảnh hưởng tới hình nền thường bên dưới.</div>
-      ${["day", "dusk", "night"].map(period => `
-        <div style="margin-top:14px">
-          <div style="font-weight:600;margin-bottom:6px">${CAROUSEL_PERIOD_LABELS[period]}</div>
-          <div id="carouselList-${period}"></div>
-        </div>
-      `).join("")}
+      <h3>🌗 Hình nền theo Chế độ sáng/tối</h3>
+      <div class="card-hint">Theme này tự đổi hình theo Chế độ tối của máy (Cài đặt → Hiển thị → Chế độ tối) — kể cả khi máy để "Tự động". Đổi ảnh ở đây, máy tự áp dụng đúng lúc, không cần quan tâm gì thêm.</div>
+      <div id="carouselSimpleList"></div>
     </div>` : "") +
     (hasVariants ? `<div class="field" style="max-width:260px;margin-bottom:14px">
       <label>Đang sửa hình nền cho</label>
@@ -1125,50 +1118,66 @@ async function renderWallpaperTab(model) {
     (model === "phone" ? '<button class="btn small" id="addWpPageBtn" style="margin-top:10px">+ Thêm trang hình nền khác</button>' : '') +
     '</div>';
   if (carouselMetaJson) {
-    for (const period of ["day", "dusk", "night"]) {
-      const listEl = document.getElementById("carouselList-" + period);
-      if (!listEl) continue;
-      const entries = Object.keys(CAROUSEL_FILE_LABELS).filter(k => carouselFiles[period] && carouselFiles[period][k]);
-      if (entries.length === 0) { listEl.innerHTML = '<div class="hint">Không có file nào cho mốc này.</div>'; continue; }
-      listEl.innerHTML = entries.map(key => {
-        const fullPath = carouselFiles[period][key];
-        const thumbId = "carouselThumb-" + period + "-" + key.replace(/\W/g, "");
+    const listEl = document.getElementById("carouselSimpleList");
+    const periods = ["day", "dusk", "night"];
+    // Gom 3 moc gio thanh 1 hang duy nhat cho moi loai anh - nguoi dung chi thay Sang/Toi, khong thay Ngay/Hoang hon/Dem
+    const rows = [];
+    for (const item of CAROUSEL_SIMPLE_ITEMS) {
+      if (item.hasLightDark) {
+        const lightPaths = periods.map(p => carouselFiles[p] && carouselFiles[p][item.keyLight]).filter(Boolean);
+        const darkPaths = periods.map(p => carouselFiles[p] && carouselFiles[p][item.keyDark]).filter(Boolean);
+        if (lightPaths.length) rows.push({ label: item.label + " — bản Sáng ☀️", paths: lightPaths, id: item.id + "-light" });
+        if (darkPaths.length) rows.push({ label: item.label + " — bản Tối 🌙", paths: darkPaths, id: item.id + "-dark" });
+      } else {
+        const sharedPaths = periods.map(p => carouselFiles[p] && carouselFiles[p][item.keyShared]).filter(Boolean);
+        if (sharedPaths.length) rows.push({ label: item.label, paths: sharedPaths, id: item.id });
+      }
+    }
+    if (rows.length === 0) {
+      listEl.innerHTML = '<div class="hint">Không đọc được file nào — có thể theme dùng cấu trúc khác, chưa hỗ trợ.</div>';
+    } else {
+      listEl.innerHTML = rows.map(row => {
+        const thumbId = "carouselThumb-" + row.id;
+        const anyChanged = row.paths.some(p => carouselReplacements[p]);
         return `<div class="wallpaper-item">
           <div class="wallpaper-thumb" id="${thumbId}"></div>
           <div class="wallpaper-info">
-            <div class="name">${escapeHtml(CAROUSEL_FILE_LABELS[key])}</div>
-            <div class="path">${escapeHtml(fullPath)}</div>
-            <div class="status ${carouselReplacements[fullPath] ? "changed" : ""}" id="status-${thumbId}">${carouselReplacements[fullPath] ? "Đã chọn file mới — nhớ bấm Xuất file theme" : "Có trong theme"}</div>
+            <div class="name">${escapeHtml(row.label)}</div>
+            <div class="status ${anyChanged ? "changed" : ""}" id="status-${thumbId}">${anyChanged ? "Đã chọn file mới — nhớ bấm Xuất file theme" : "Có trong theme"}</div>
           </div>
           <div>
-            <button class="btn small" data-carousel-path="${escapeAttr(fullPath)}" data-thumb="${thumbId}">Thay bằng file khác</button>
+            <button class="btn small" data-thumb="${thumbId}" data-row-id="${row.id}">Thay bằng file khác</button>
             <input type="file" id="input-${thumbId}" accept="image/*" style="display:none">
           </div>
         </div>`;
       }).join("");
-      for (const key of entries) {
-        const fullPath = carouselFiles[period][key];
-        const thumbId = "carouselThumb-" + period + "-" + key.replace(/\W/g, "");
+      const rowsById = {};
+      rows.forEach(r => rowsById[r.id] = r);
+      for (const row of rows) {
+        const thumbId = "carouselThumb-" + row.id;
         (async () => {
           try {
-            const blob = carouselReplacements[fullPath] || await mainZip.files[fullPath].async("blob");
+            const firstPath = row.paths[0];
+            const blob = carouselReplacements[firstPath] || await mainZip.files[firstPath].async("blob");
             const thumbEl = document.getElementById(thumbId);
             if (thumbEl) thumbEl.innerHTML = `<img src="${await blobToDataURL(blob)}">`;
           } catch (e) { /* bo qua */ }
         })();
       }
-      listEl.querySelectorAll("button[data-carousel-path]").forEach(btn => {
+      listEl.querySelectorAll("button[data-row-id]").forEach(btn => {
         btn.addEventListener("click", () => document.getElementById("input-" + btn.dataset.thumb).click());
       });
       listEl.querySelectorAll("input[type=file]").forEach(inp => {
         inp.addEventListener("change", async (e) => {
           if (!e.target.files.length) return;
-          const btn = listEl.querySelector(`button[data-thumb="${inp.id.replace("input-", "")}"]`);
-          const fullPath = btn.dataset.carouselPath;
+          const thumbId = inp.id.replace("input-", "");
+          const btn = listEl.querySelector(`button[data-thumb="${thumbId}"]`);
+          const row = rowsById[btn.dataset.rowId];
           const f = e.target.files[0];
-          carouselReplacements[fullPath] = f;
-          document.getElementById(inp.id.replace("input-", "")).innerHTML = `<img src="${await blobToDataURL(f)}">`;
-          const st = document.getElementById("status-" + inp.id.replace("input-", ""));
+          // Ap dung 1 anh nay cho CA 3 moc gio ben trong (Ngay/Hoang hon/Dem) - nguoi dung khong can biet
+          for (const p of row.paths) carouselReplacements[p] = f;
+          document.getElementById(thumbId).innerHTML = `<img src="${await blobToDataURL(f)}">`;
+          const st = document.getElementById("status-" + thumbId);
           st.textContent = "Đã chọn file mới — nhớ bấm Xuất file theme";
           st.className = "status changed";
           toast("Đã đổi ảnh — nhớ bấm Xuất file theme", "ok");
