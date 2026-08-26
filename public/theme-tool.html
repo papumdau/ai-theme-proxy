@@ -495,6 +495,7 @@
         <option value="sepia">Vintage nâu cổ điển (sepia)</option>
         <option value="posterize">Giảm số lượng màu (poster hoá)</option>
         <option value="outline-glow">Viền phát sáng (giữ icon gốc, thêm viền sáng quanh)</option>
+        <option value="bg-swap-keep-color">Đổi nền sáng↔tối, giữ nguyên chi tiết có màu</option>
       </select>
     </div>
     <div id="filterColorFields">
@@ -4545,6 +4546,13 @@ function applyPixelFilter(imgData, kind, color1, color2) {
       d[i] = Math.round(Math.round(r / step) * step);
       d[i + 1] = Math.round(Math.round(g / step) * step);
       d[i + 2] = Math.round(Math.round(b / step) * step);
+    } else if (kind === "bg-swap-keep-color") {
+      // Diem trung tinh (den/xam/trang, khong ro mau) -> dao sang-toi. Diem co mau that -> giu nguyen.
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+      const chroma = mx - mn; // cang gan 0 nghia la cang xam/den/trang
+      if (chroma < 26) {
+        d[i] = 255 - r; d[i + 1] = 255 - g; d[i + 2] = 255 - b;
+      }
     }
   }
   return imgData;
