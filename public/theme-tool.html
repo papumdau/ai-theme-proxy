@@ -521,7 +521,11 @@ let wallpaperReplacements = {};
 let wallpaperVariantReplacements = { foldable: {}, tablet: {} };
 
 let nestedPackages = {};
-let iconReplacements = {};
+let iconReplacementsLight = {};
+let iconReplacementsDark = {};
+let activeIconVariant = "light"; // "light" hoac "dark" - quyet dinh iconReplacements dang tro vao bo nao
+let iconReplacements = iconReplacementsLight;
+let aodBgReplacements = {}; // rieng cho anh nen AOD, tach khoi iconReplacements de khong bi anh huong khi doi Sang/Toi
 let iconBlobCache = {};
 let currentPkgPath = null;
 let pkgDeleted = {};
@@ -631,7 +635,11 @@ async function handleFile(file) {
   wallpaperReplacements = {};
   wallpaperVariantReplacements = { foldable: {}, tablet: {} };
   nestedPackages = {};
-  iconReplacements = {};
+  iconReplacementsLight = {};
+  iconReplacementsDark = {};
+  activeIconVariant = "light";
+  iconReplacements = iconReplacementsLight;
+  aodBgReplacements = {};
   iconBlobCache = {};
   clockJsonPaths = [];
   unlockXmlPath = null;
@@ -1264,6 +1272,12 @@ function renderIconsTab() {
 
   let options = pkgPaths.map(p => `<option value="${escapeAttr(p)}" ${p === currentPkgPath ? "selected" : ""}>${escapeHtml(nestedPackages[p].label)} (${nestedPackages[p].names.length})</option>`).join("");
   el.innerHTML = `
+    <div class="card-hint">Đang chỉnh bản: <b>${activeIconVariant === "light" ? "Sáng" : "Tối"}</b>. Mỗi bản (Sáng/Tối) lưu icon riêng, không ảnh hưởng nhau — xuất file ở bản nào thì được đúng bộ icon của bản đó.</div>
+    <div class="search-row" style="margin-bottom:8px">
+      <button class="btn small ${activeIconVariant === "light" ? "primary" : ""}" id="variantLightBtn">☀️ Bản Sáng</button>
+      <button class="btn small ${activeIconVariant === "dark" ? "primary" : ""}" id="variantDarkBtn">🌙 Bản Tối</button>
+      <button class="btn small" id="autoDarkAiBtn">Tự tạo bản Tối bằng AI (hàng loạt)</button>
+    </div>
     <div class="search-row">
       <select id="pkgSelect">${options}</select>
       <input type="text" id="iconSearch" placeholder="Gõ tên app để tìm, ví dụ: zalo, facebook, camera...">
@@ -1329,6 +1343,32 @@ function renderIconsTab() {
   document.getElementById("donorInput").addEventListener("change", handleDonorFile);
   document.getElementById("openRecolorBtn").addEventListener("click", openRecolorPanel);
   document.getElementById("openBatchAiBtn").addEventListener("click", openBatchAiPanel);
+  document.getElementById("variantLightBtn").addEventListener("click", () => {
+    if (activeIconVariant === "light") return;
+    activeIconVariant = "light";
+    iconReplacements = iconReplacementsLight;
+    renderIconsTab();
+  });
+  document.getElementById("variantDarkBtn").addEventListener("click", () => {
+    if (activeIconVariant === "dark") return;
+    activeIconVariant = "dark";
+    iconReplacements = iconReplacementsDark;
+    renderIconsTab();
+  });
+  document.getElementById("autoDarkAiBtn").addEventListener("click", () => {
+    if (activeIconVariant === "light" && Object.keys(iconReplacementsLight).length === 0) {
+      toast("Chưa có icon nào ở bản Sáng để dựa vào — anh chỉnh bản Sáng trước đã, hoặc cứ để AI vẽ từ icon gốc.", "ok");
+    }
+    activeIconVariant = "dark";
+    iconReplacements = iconReplacementsDark;
+    renderIconsTab();
+    document.getElementById("batchAiPrompt") && (document.getElementById("batchAiPrompt").value = "");
+    openBatchAiPanel();
+    setTimeout(() => {
+      const p = document.getElementById("batchAiPrompt");
+      if (p) p.value = "chuyển icon này sang phong cách dark mode / chế độ tối, giữ nguyên hình khối và logo chính, đổi nền và tông màu cho tối hơn, dễ nhìn trong giao diện tối";
+    }, 0);
+  });
   document.getElementById("toggleSelectModeBtn").addEventListener("click", () => {
     selectMode = !selectMode;
     if (!selectMode) selectedIcons.clear();
@@ -3050,7 +3090,7 @@ function renderSystemTab() {
     (async () => {
       const thumbEl = document.getElementById("aodBgThumb");
       if (!thumbEl) return;
-      const existing = iconReplacements[aodPkgPath] && iconReplacements[aodPkgPath][aodDigitBgPaths[0]];
+      const existing = aodBgReplacements[aodDigitBgPaths[0]];
       let blob = existing;
       if (!blob) {
         try {
@@ -3140,8 +3180,7 @@ function renderSystemTab() {
     aodBgReplaceInput.addEventListener("change", async (e) => {
       if (!e.target.files.length) return;
       const f = e.target.files[0];
-      if (!iconReplacements[aodPkgPath]) iconReplacements[aodPkgPath] = {};
-      for (const p of aodDigitBgPaths) iconReplacements[aodPkgPath][p] = f;
+      for (const p of aodDigitBgPaths) aodBgReplacements[p] = f;
       document.getElementById("aodBgThumb").innerHTML = `<img src="${await blobToDataURL(f)}">`;
       const st = document.getElementById("aodBgStatus");
       st.textContent = "Đã chọn ảnh mới — nhớ bấm Xuất file theme";
@@ -3569,6 +3608,7 @@ function saveDraft() {
     chargingReplacements: { ...chargingReplacements },
     customFontDisplayName, customFontFile,
     iconReplacements: cloneReplMap(iconReplacements),
+    aodBgReplacements: { ...aodBgReplacements },
     pkgDeleted: cloneDeletedMap(pkgDeleted),
     wallpaperReplacements: { ...wallpaperReplacements },
     wallpaperVariantReplacements: { foldable: { ...wallpaperVariantReplacements.foldable }, tablet: { ...wallpaperVariantReplacements.tablet } },
@@ -3592,6 +3632,8 @@ function restoreDraft(idx) {
   chargingReplacements = { ...s.chargingReplacements };
   customFontDisplayName = s.customFontDisplayName; customFontFile = s.customFontFile;
   iconReplacements = cloneReplMap(s.iconReplacements);
+  if (activeIconVariant === "dark") iconReplacementsDark = iconReplacements; else iconReplacementsLight = iconReplacements;
+  aodBgReplacements = { ...(s.aodBgReplacements || {}) };
   pkgDeleted = cloneDeletedMap(s.pkgDeleted);
   wallpaperReplacements = { ...s.wallpaperReplacements };
   wallpaperVariantReplacements = { foldable: { ...s.wallpaperVariantReplacements.foldable }, tablet: { ...s.wallpaperVariantReplacements.tablet } };
@@ -3838,7 +3880,7 @@ function escapeAttr(s) { return escapeHtml(s).replace(/"/g, "&quot;"); }
 
 async function buildInnerPackageBytes(pkgPath) {
   const pkg = nestedPackages[pkgPath];
-  const repl = iconReplacements[pkgPath] || {};
+  const repl = Object.assign({}, iconReplacements[pkgPath] || {}, pkgPath === aodPkgPath ? aodBgReplacements : {});
   const textEdits = pkgTextEdits[pkgPath] || {};
   const deleted = pkgDeleted[pkgPath] || new Set();
   const baseAll = pkg.allNames || pkg.names;
