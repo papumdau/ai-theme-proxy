@@ -605,6 +605,7 @@ let donorZip = null;
 let donorChargingFiles = null;
 let donorWallpapers = {};
 let donorFontPath = null;
+let donorFpIconPath = null;
 let mergedChargingBlobs = null;
 let donorNestedPackages = {};
 
@@ -1444,6 +1445,7 @@ async function handleDonorFile(e) {
   donorFontPath = null;
   const paths = Object.keys(donorZip.files).filter(p => !donorZip.files[p].dir);
   donorFontPath = paths.find(p => p.toLowerCase().endsWith(".ttf")) || null;
+  donorFpIconPath = paths.find(p => p.includes("fingerprint_icon") && p.toLowerCase().endsWith(".svg")) || null;
   const knownWpNames = Object.keys(WALLPAPER_LABELS);
   for (const p of paths) {
     const base = p.split("/").pop();
@@ -1491,8 +1493,8 @@ async function handleDonorFile(e) {
 
   const donorPaths = Object.keys(donorNestedPackages);
   const donorWpNames = Object.keys(donorWallpapers);
-  if (donorPaths.length === 0 && !donorChargingFiles && donorWpNames.length === 0 && !donorFontPath) {
-    listEl.innerHTML = '<div class="hint">File này không có gói, hình nền hay font nào để ghép.</div>';
+  if (donorPaths.length === 0 && !donorChargingFiles && donorWpNames.length === 0 && !donorFontPath && !donorFpIconPath) {
+    listEl.innerHTML = '<div class="hint">File này không có gói, hình nền, font hay icon vân tay nào để ghép.</div>';
     return;
   }
   let itemsHtml = donorPaths.map(p => {
@@ -1534,6 +1536,16 @@ async function handleDonorFile(e) {
         <div class="path">${escapeHtml(donorFontPath)}</div>
       </div>
       <button class="btn small" id="mergeFontBtn">Ghép font này</button>
+    </div>`;
+  }
+  if (donorFpIconPath) {
+    itemsHtml += `<div class="wallpaper-item">
+      <div class="wallpaper-thumb" id="donorFpThumb"></div>
+      <div class="wallpaper-info">
+        <div class="name">Icon vân tay</div>
+        <div class="path">${escapeHtml(donorFpIconPath)}</div>
+      </div>
+      <button class="btn small" id="mergeFpBtn" ${fpIconPath ? "" : "disabled"}>${fpIconPath ? "Ghép icon này" : "Theme đang mở không có chỗ vân tay"}</button>
     </div>`;
   }
   listEl.innerHTML = itemsHtml;
@@ -1600,6 +1612,23 @@ async function handleDonorFile(e) {
     customFontDisplayName = fontFileName.replace(/\.ttf$/i, "");
     toast(`Đã ghép font "${customFontDisplayName}" — nhớ bấm Xuất file theme`, "ok");
     if (document.getElementById("panel-font")) renderFontTab();
+  });
+  if (donorFpIconPath) {
+    (async () => {
+      try {
+        const blob = await donorZip.files[donorFpIconPath].async("text").then(text => svgTextToPngDataUrl(text, 256));
+        const thumbEl = document.getElementById("donorFpThumb");
+        if (thumbEl && blob) thumbEl.innerHTML = `<img src="${blob}">`;
+      } catch (e) { /* bo qua */ }
+    })();
+  }
+  const mergeFpBtn = document.getElementById("mergeFpBtn");
+  if (mergeFpBtn) mergeFpBtn.addEventListener("click", async () => {
+    if (!donorFpIconPath || !fpIconPath) return;
+    const bytes = await donorZip.files[donorFpIconPath].async("uint8array");
+    fpIconReplacement = new File([bytes], "fingerprint_icon.svg", { type: "image/svg+xml" });
+    toast("Đã ghép icon vân tay — nhớ bấm Xuất file theme", "ok");
+    if (document.getElementById("panel-fingerprint")) renderFingerprintTab();
   });
 }
 
