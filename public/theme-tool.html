@@ -35,6 +35,11 @@
   }
   .wrap { max-width: 1100px; margin: 0 auto; padding: 28px 20px 80px; }
   header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+  #checkThemeResult { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; font-size: 13px; }
+  #checkThemeResult .ok-line { color: var(--ok); }
+  #checkThemeResult .warn-line { color: #e0a800; }
+  #checkThemeResult .err-line { color: var(--danger); }
+  #checkThemeResult ul { margin: 6px 0 0 18px; padding: 0; }
   h1 { font-size: 20px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
   h1 span { color: var(--accent); }
   .sub { color: var(--text-dim); font-size: 13px; margin-top: 2px; }
@@ -80,8 +85,24 @@
   #dropzone .small { font-size: 12px; color: var(--text-mute); }
 
   #app { display: none; }
-  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 20px; overflow-x: auto; }
-  .tab {
+  .tabs-main { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+  @media (min-width: 640px) { .tabs-main { grid-template-columns: repeat(6, 1fr); } }
+  .tab-main {
+    padding: 12px 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-dim);
+    cursor: pointer;
+    text-align: center;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .tab-main:hover:not(.active) { color: var(--text); border-color: var(--border-strong); }
+  .tab-main.active { color: var(--text); background: var(--accent-bg); border-color: var(--accent); }
+  .tabs-sub { display: none; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 20px; overflow-x: auto; }
+  .tab-sub {
     padding: 10px 14px;
     font-size: 13px;
     font-weight: 500;
@@ -90,8 +111,8 @@
     border-bottom: 2px solid transparent;
     white-space: nowrap;
   }
-  .tab.active { color: var(--text); border-bottom-color: var(--accent); }
-  .tab:hover:not(.active) { color: var(--text); }
+  .tab-sub.active { color: var(--text); border-bottom-color: var(--accent); }
+  .tab-sub:hover:not(.active) { color: var(--text); }
   .panel { display: none; }
   .panel.active { display: block; }
 
@@ -258,19 +279,19 @@
   .preview-statusbar img { height: 14px; }
   .preview-clock { position: absolute; top: 10%; left: 0; right: 0; text-align: center; font-size: clamp(28px, 12vw, 46px); font-weight: 200; letter-spacing: -2px; text-shadow: 0 2px 12px rgba(0,0,0,0.35); }
   .preview-date { position: absolute; top: calc(10% + 58px); left: 0; right: 0; text-align: center; font-size: 10px; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.4); }
-  .preview-control-panel { position: absolute; top: 34px; left: 0; right: 0; bottom: 0; padding: 12px 14px; }
+  .preview-control-panel { position: absolute; top: 34px; left: 14px; right: 14px; padding: 12px 14px; background: rgba(20,20,20,0.28); backdrop-filter: blur(20px); border-radius: 22px; }
   .ctrl-title { font-size: 12px; font-weight: 600; color: #fff; margin-bottom: 10px; text-shadow: 0 1px 4px rgba(0,0,0,0.4); }
   .ctrl-toprow { display: flex; justify-content: space-between; margin-bottom: 10px; }
-  .ctrl-round { width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,0.22); backdrop-filter: blur(14px); display: flex; align-items: center; justify-content: center; }
-  .ctrl-wide-row { display: grid; grid-template-columns: 1.3fr 1fr; gap: 8px; margin-bottom: 8px; }
-  .ctrl-media { border-radius: 18px; background: rgba(255,255,255,0.16); backdrop-filter: blur(16px); padding: 10px; color: #fff; font-size: 9px; }
-  .ctrl-toggle { border-radius: 18px; background: rgba(255,255,255,0.22); backdrop-filter: blur(16px); padding: 10px; color: #fff; font-size: 10px; font-weight: 500; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
-  .ctrl-toggle .dot { width: 16px; height: 16px; border-radius: 50%; background: rgba(255,255,255,0.5); flex-shrink: 0; }
-  .ctrl-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
-  .ctrl-tile { aspect-ratio: 1; border-radius: 50%; background: rgba(255,255,255,0.2); backdrop-filter: blur(14px); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px; }
-  .preview-icongrid { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); width: min(260px, calc(100% - 32px)); display: flex; gap: 10px; }
-  .preview-icongroup { flex: 1; background: rgba(255,255,255,0.14); backdrop-filter: blur(14px); border-radius: 16px; padding: 8px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
-  .preview-icongroup img { width: 100%; aspect-ratio: 1; border-radius: 8px; }
+  .ctrl-round { width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.22); backdrop-filter: blur(14px); display: flex; align-items: center; justify-content: center; font-size: 10px; }
+  .ctrl-wide-row { display: grid; grid-template-columns: 1.3fr 1fr; gap: 6px; margin-bottom: 6px; }
+  .ctrl-media { border-radius: 12px; background: rgba(255,255,255,0.16); backdrop-filter: blur(16px); padding: 7px; color: #fff; font-size: 8px; }
+  .ctrl-toggle { border-radius: 12px; background: rgba(255,255,255,0.22); backdrop-filter: blur(16px); padding: 7px; color: #fff; font-size: 8px; font-weight: 500; margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
+  .ctrl-toggle .dot { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,0.5); flex-shrink: 0; }
+  .ctrl-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px; max-width: 180px; margin-left: auto; margin-right: auto; }
+  .ctrl-tile { aspect-ratio: 1; border-radius: 50%; background: rgba(255,255,255,0.2); backdrop-filter: blur(14px); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; }
+  .preview-icongrid { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); width: min(260px, calc(100% - 32px)); display: flex; justify-content: space-between; gap: 10px; }
+  .preview-icongroup { flex: 0 0 auto; background: rgba(255,255,255,0.14); backdrop-filter: blur(14px); border-radius: 14px; padding: 6px; display: grid; grid-template-columns: repeat(2, 22px); gap: 5px; }
+  .preview-icongroup img { width: 22px; height: 22px; aspect-ratio: 1; border-radius: 6px; }
   .preview-charging { position: absolute; inset: 0; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: #fff; }
   .preview-charging img { width: 26px; }
   .preview-charging .pct { font-size: 32px; font-weight: 600; }
@@ -311,13 +332,6 @@
       <h1>Công cụ làm <span>Theme Honor</span></h1>
       <div class="sub">Mở, sửa, đóng gói lại file .hwt / .hnt / .zip — chạy hoàn toàn trên máy, không gửi đi đâu cả</div>
     </div>
-    <div id="exportWrap" style="display:none;display:flex;gap:8px;align-items:center">
-      <select id="exportFormat" style="width:auto;height:36px;padding:6px 10px">
-        <option value="hnt">Xuất .hnt (cài luôn vào máy)</option>
-        <option value="zip">Xuất .zip (để mở kiểm tra trước)</option>
-      </select>
-      <button class="btn primary" id="exportBtn">Xuất file theme</button>
-    </div>
   </header>
 
   <div class="newtheme-row">
@@ -335,18 +349,15 @@
   <div id="app">
     <div class="filename-bar">Đang mở: <b id="currentFileName"></b> <button class="btn small" id="loadNewBtn">Mở file khác</button></div>
 
-    <div class="tabs">
-      <div class="tab active" data-tab="info">Thông tin theme</div>
-      <div class="tab" data-tab="wallpaper">Hình nền</div>
-      <div class="tab" data-tab="lock">Đồng hồ &amp; mở khoá</div>
-      <div class="tab" data-tab="fingerprint">Icon vân tay</div>
-      <div class="tab" data-tab="icons">Icon ứng dụng</div>
-      <div class="tab" data-tab="system">Hệ thống &amp; AOD</div>
-      <div class="tab" data-tab="font">Font chữ</div>
-      <div class="tab" data-tab="charging">Sạc pin</div>
-      <div class="tab" data-tab="preview">Xem trước điện thoại</div>
-      <div class="tab" data-tab="tree">Cấu trúc file</div>
+    <div class="tabs-main" id="tabsMain">
+      <div class="tab-main active" data-group="theme">📁 Theme của tôi</div>
+      <div class="tab-main" data-group="media">🖼️ Hình ảnh</div>
+      <div class="tab-main" data-group="style">🎨 Màu &amp; Hiệu ứng</div>
+      <div class="tab-main" data-group="preview">📱 Xem trước</div>
+      <div class="tab-main" data-group="export">📦 Xuất &amp; Kiểm tra</div>
+      <div class="tab-main" data-group="advanced">⚙️ Nâng cao</div>
     </div>
+    <div class="tabs-sub" id="tabsSub"></div>
 
     <div class="panel active" id="panel-info"></div>
     <div class="panel" id="panel-wallpaper"></div>
@@ -357,6 +368,28 @@
     <div class="panel" id="panel-font"></div>
     <div class="panel" id="panel-charging"></div>
     <div class="panel" id="panel-preview"></div>
+    <div class="panel" id="panel-export">
+      <div class="card">
+        <h3>Xuất file theme</h3>
+        <div class="card-hint">Xuất xong nhớ cài vào máy Honor thật để kiểm tra — tool chỉ mô phỏng trên máy tính/điện thoại, không thay được việc cài thử thật.</div>
+        <div class="field"><label>Kiểu file xuất</label>
+          <select id="exportFormat">
+            <option value="hnt">Xuất .hnt (cài luôn vào máy)</option>
+            <option value="zip">Xuất .zip (để mở kiểm tra trước)</option>
+          </select>
+        </div>
+        <button class="btn primary" id="exportBtn" style="width:100%;margin-top:6px">📦 Xuất file theme</button>
+      </div>
+      <div class="card">
+        <h3>Kiểm tra &amp; hoàn tác</h3>
+        <div class="card-hint">Quét nhanh vài lỗi hay gặp trước khi xuất, hoặc lùi lại nếu thao tác vừa rồi làm hỏng gì đó.</div>
+        <div class="row" style="gap:8px">
+          <button class="btn small" id="checkThemeBtn" style="flex:1">🔍 Kiểm tra theme</button>
+          <button class="btn small" id="undoLastBtn" style="flex:1" disabled>↩ Hoàn tác thao tác cuối</button>
+        </div>
+        <div id="checkThemeResult" style="display:none;margin-top:12px"></div>
+      </div>
+    </div>
     <div class="panel" id="panel-tree"></div>
   </div>
 </div>
@@ -475,6 +508,16 @@
     <div class="hint" style="margin-bottom:12px" id="batchAiScope"></div>
     <div class="field"><label>Mô tả phong cách chung (áp cho mọi icon đang lọc)</label>
       <textarea id="batchAiPrompt" placeholder="ví dụ: liquid glass style, tông cam đỏ, nền trong suốt, giữ nguyên hình khối gốc"></textarea></div>
+    <label style="display:flex;align-items:center;gap:6px;margin:6px 0;font-size:13px;font-weight:400">
+      <input type="checkbox" id="batchAiUseRefCheckbox" checked> Dựa vào icon gốc của từng app (bỏ chọn để AI vẽ hoàn toàn mới cho mọi icon, chỉ theo mô tả)
+    </label>
+    <div class="field"><label>Hoặc: tải 1 ảnh mẫu để AI dựa vào cho TẤT CẢ icon (không bắt buộc)</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button type="button" class="btn small" id="batchAiUploadRefBtn">Tải ảnh mẫu chung</button>
+        <span class="path" id="batchAiUploadRefName">Chưa chọn ảnh — mặc định dùng icon gốc từng app</span>
+        <input type="file" id="batchAiUploadRefInput" accept="image/*" style="display:none">
+      </div>
+    </div>
     <div class="hint" id="batchAiCost"></div>
     <div class="hint" id="batchAiProgress" style="margin-top:8px"></div>
     <div class="draw-actions">
@@ -492,6 +535,7 @@
       <textarea id="aiPrompt" placeholder="ví dụ: a minimalist orange gradient app icon of a shopping bag, flat design"></textarea></div>
     <div class="hint" id="aiCostHint"></div>
     <div class="ai-reference-box" id="aiReferenceBox"></div>
+    <input type="file" id="aiUploadRefInput" accept="image/*" style="display:none">
     <div class="ai-compare-box" id="aiCompareBox" style="display:none"></div>
     <div class="draw-actions" id="aiActionsGenerate">
       <button class="btn" id="aiCancelBtn">Huỷ</button>
@@ -532,6 +576,7 @@ let pkgDeleted = {};
 let pkgTextEdits = {};
 
 let systemuiPkgPath = null, systemuiColorFiles = [], systemuiTintColor = "";
+let controlTileBgPath = null, controlMaskPath = null;
 // Các tên màu đã xác nhận thật là cùng 1 "màu chủ đạo hệ thống" trong file mẫu thật (Dark Emotion EMUI11).
 // qs_tile_tint_on + hnnotification_brightness_icon_color: đã kiểm chứng chạy tốt từ trước.
 // hw_emui_accent + system_accent_color: tên màu chuẩn phổ biến của Android/EMUI, xác nhận trùng giá trị trong file mẫu thật — MỚI thêm, anh nhớ kiểm tra kỹ trên máy trước khi tin tưởng hoàn toàn.
@@ -558,6 +603,8 @@ let aiTargetType = null, aiTargetPkg = null, aiTargetIconName = null, aiTargetWp
 let suggestedIconColor = null;
 let donorZip = null;
 let donorChargingFiles = null;
+let donorWallpapers = {};
+let donorFontPath = null;
 let mergedChargingBlobs = null;
 let donorNestedPackages = {};
 
@@ -604,7 +651,6 @@ fileInput.addEventListener("change", (e) => {
 });
 document.getElementById("loadNewBtn").addEventListener("click", () => {
   document.getElementById("app").style.display = "none";
-  document.getElementById("exportWrap").style.display = "none";
   dropzone.style.display = "block";
   document.querySelector(".newtheme-row").style.display = "flex";
   document.querySelector(".or-divider").style.display = "block";
@@ -700,6 +746,7 @@ async function handleFile(file) {
   }
 
   systemuiPkgPath = null; systemuiColorFiles = []; systemuiTintColor = "";
+  controlTileBgPath = null; controlMaskPath = null;
   aodPkgPath = null; aodThemeXmlPath = null; aodThemeXmlRaw = ""; aodFields = {};
   aodDigitBgPaths = [];
   pkgTextEdits = {};
@@ -721,6 +768,8 @@ async function handleFile(file) {
         systemuiColorFiles = foundFiles;
         const m = foundFiles[0].text.match(/qs_tile_tint_on[^#]*(#[0-9A-Fa-f]{6,8})/);
         systemuiTintColor = m ? m[1] : "";
+        controlTileBgPath = pkg.allNames.find(n => /qs_tile_bg/i.test(n)) || null;
+        controlMaskPath = pkg.allNames.find(n => /mask_control_center/i.test(n) && !/main_color/i.test(n)) || null;
       }
     }
     if (pkg.label === "Màn hình luôn bật (AOD)" && !aodPkgPath) {
@@ -794,7 +843,6 @@ async function handleFile(file) {
   document.querySelector(".newtheme-row").style.display = "none";
   document.querySelector(".or-divider").style.display = "none";
   document.getElementById("app").style.display = "block";
-  document.getElementById("exportWrap").style.display = "flex";
   renderInfoTab();
   renderWallpaperTab();
   renderLockTab();
@@ -1008,17 +1056,18 @@ async function renderWallpaperTab(model) {
       <div class="wallpaper-info">
         <div class="name">${WALLPAPER_LABELS[name]}</div>
         <div class="path">${name}</div>
-        <div class="status ${path ? "" : "missing"}" id="status-${thumbId}">${path ? "Có trong theme" : "Theme này không có file này"}</div>
+        <div class="status ${replMap[name] ? "changed" : (path ? "" : "missing")}" id="status-${thumbId}">${replMap[name] ? "Đã chọn file mới — nhớ bấm Xuất file theme" : (path ? "Có trong theme" : "Theme này không có file này")}</div>
       </div>
       <div>
-        <button class="btn small" data-name="${name}" data-thumb="${thumbId}">${path ? "Thay bằng file khác" : "Thêm file này"}</button>
+        <button class="btn small" data-name="${name}" data-thumb="${thumbId}">${(path || replMap[name]) ? "Thay bằng file khác" : "Thêm file này"}</button>
         ${!isVideo ? `<button class="btn small ai-wp-btn" data-name="${name}">AI tạo</button>` : ""}
         <input type="file" style="display:none" accept="${isVideo ? "video/*" : "image/*"}" id="input-${thumbId}">
       </div>
     `;
     list.appendChild(row);
-    if (path) {
-      const blob = await mainZip.files[path].async("blob");
+    const replBlob = replMap[name];
+    if (replBlob || path) {
+      const blob = replBlob || await mainZip.files[path].async("blob");
       const url = isVideo ? URL.createObjectURL(blob) : await blobToDataURL(blob);
       const thumbEl = document.getElementById(thumbId);
       thumbEl.innerHTML = isVideo ? `<video src="${url}" muted></video>` : `<img src="${url}">`;
@@ -1149,7 +1198,7 @@ function renderLockTab() {
   });
   const jumpBtn = document.getElementById("jumpToUnlockPreviewBtn");
   if (jumpBtn) jumpBtn.addEventListener("click", () => {
-    document.querySelector('.tab[data-tab="preview"]').click();
+    document.querySelector('.tab-main[data-group="preview"]').click();
     setTimeout(() => {
       const lockModeBtn = document.querySelector('#previewModeRow button[data-mode="lock"]');
       if (lockModeBtn) lockModeBtn.click();
@@ -1227,6 +1276,7 @@ async function renderFingerprintTab() {
       <div>
         <button class="btn small" id="fpReplaceBtn">Thay bằng ảnh khác</button>
         <input type="file" id="fpReplaceInput" accept="image/*,.svg" style="display:none">
+        <button class="btn small" id="fpAiBtn" style="margin-left:6px">Tạo bằng AI</button>
       </div>
     </div>
     <div class="hint" style="margin-top:8px">Chọn ảnh bất kỳ (vuông hay không đều được, JPG/PNG/WebP...) — tool tự cắt vuông giữa ảnh rồi đóng gói lại thành file .svg hợp lệ. Lưu ý thật: đây là <b>nhúng ảnh vào khung SVG</b>, không phải vẽ lại thành đường nét vector — nếu ảnh gốc mờ/nhỏ thì phóng to vẫn mờ như ảnh gốc.</div>`;
@@ -1258,6 +1308,7 @@ async function renderFingerprintTab() {
       document.getElementById("fpStatus").className = "status changed";
       toast("Đã đổi icon vân tay", "ok");
     });
+    document.getElementById("fpAiBtn").addEventListener("click", () => openAiOverlay("fp-icon", null, null));
   }
 }
 
@@ -1389,9 +1440,16 @@ async function handleDonorFile(e) {
     return;
   }
   donorNestedPackages = {};
+  donorWallpapers = {};
+  donorFontPath = null;
   const paths = Object.keys(donorZip.files).filter(p => !donorZip.files[p].dir);
+  donorFontPath = paths.find(p => p.toLowerCase().endsWith(".ttf")) || null;
+  const knownWpNames = Object.keys(WALLPAPER_LABELS);
   for (const p of paths) {
     const base = p.split("/").pop();
+    if (knownWpNames.includes(base) || /^home_wallpaper_\d+\.jpg$/i.test(base)) {
+      donorWallpapers[base] = p;
+    }
     if (/\.(xml|json|jpg|jpeg|png|mp4|ttf|svg|txt)$/i.test(base)) continue;
     try {
       const bytes = await donorZip.files[p].async("uint8array");
@@ -1432,8 +1490,9 @@ async function handleDonorFile(e) {
   }
 
   const donorPaths = Object.keys(donorNestedPackages);
-  if (donorPaths.length === 0 && !donorChargingFiles) {
-    listEl.innerHTML = '<div class="hint">File này không có gói nào để ghép.</div>';
+  const donorWpNames = Object.keys(donorWallpapers);
+  if (donorPaths.length === 0 && !donorChargingFiles && donorWpNames.length === 0 && !donorFontPath) {
+    listEl.innerHTML = '<div class="hint">File này không có gói, hình nền hay font nào để ghép.</div>';
     return;
   }
   let itemsHtml = donorPaths.map(p => {
@@ -1447,6 +1506,16 @@ async function handleDonorFile(e) {
       <button class="btn small" data-donor-path="${escapeAttr(p)}" ${already ? "disabled" : ""}>${already ? "Đã có trong theme này" : "Ghép vào theme này"}</button>
     </div>`;
   }).join("");
+  itemsHtml += donorWpNames.map(name => {
+    return `<div class="wallpaper-item">
+      <div class="wallpaper-thumb" id="donorWpThumb-${name.replace(/\W/g, "")}"></div>
+      <div class="wallpaper-info">
+        <div class="name">${escapeHtml(WALLPAPER_LABELS[name] || name)}</div>
+        <div class="path">${name} (hình nền)</div>
+      </div>
+      <button class="btn small" data-donor-wp="${escapeAttr(name)}">Ghép hình này</button>
+    </div>`;
+  }).join("");
   if (donorChargingFiles) {
     const already = !!chargingConfigPath;
     itemsHtml += `<div class="wallpaper-item">
@@ -1457,7 +1526,40 @@ async function handleDonorFile(e) {
       <button class="btn small" id="mergeChargingBtn" ${already ? "disabled" : ""}>${already ? "Theme này đã có sạc pin" : "Ghép vào theme này"}</button>
     </div>`;
   }
+  if (donorFontPath) {
+    const fontName = donorFontPath.split("/").pop();
+    itemsHtml += `<div class="wallpaper-item">
+      <div class="wallpaper-info">
+        <div class="name">Font chữ (${escapeHtml(fontName)})</div>
+        <div class="path">${escapeHtml(donorFontPath)}</div>
+      </div>
+      <button class="btn small" id="mergeFontBtn">Ghép font này</button>
+    </div>`;
+  }
   listEl.innerHTML = itemsHtml;
+  for (const name of donorWpNames) {
+    try {
+      const blob = await donorZip.files[donorWallpapers[name]].async("blob");
+      const thumbEl = document.getElementById("donorWpThumb-" + name.replace(/\W/g, ""));
+      if (thumbEl) {
+        if (name.endsWith(".mp4")) thumbEl.innerHTML = `<video src="${URL.createObjectURL(blob)}" muted></video>`;
+        else thumbEl.innerHTML = `<img src="${await blobToDataURL(blob)}">`;
+      }
+    } catch (e) { /* bo qua */ }
+  }
+  listEl.querySelectorAll("button[data-donor-wp]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const name = btn.dataset.donorWp;
+      const blob = await donorZip.files[donorWallpapers[name]].async("blob");
+      if (!WALLPAPER_LABELS[name] && /^home_wallpaper_\d+\.jpg$/i.test(name)) {
+        const n = parseInt(name.match(/\d+/)[0], 10);
+        if (n > extraWallpaperPages) { extraWallpaperPages = n; WALLPAPER_LABELS[name] = "Hình nền màn hình chính — trang " + (n + 1); }
+      }
+      wallpaperReplacements[name] = blob;
+      toast(`Đã ghép hình "${WALLPAPER_LABELS[name] || name}" vào theme — nhớ bấm Xuất file theme`, "ok");
+      if (document.getElementById("panel-wallpaper")) renderWallpaperTab();
+    });
+  });
   listEl.querySelectorAll("button[data-donor-path]").forEach(btn => {
     btn.addEventListener("click", () => {
       const p = btn.dataset.donorPath;
@@ -1488,6 +1590,16 @@ async function handleDonorFile(e) {
     while ((lm = levelRe.exec(chargingConfigRaw))) chargingFields.push({ tag: lm[1], content: lm[2], color: lm[3] });
     toast("Đã ghép màn sạc pin — nhớ bấm Xuất file theme", "ok");
     renderChargingTab();
+  });
+  const mergeFontBtn = document.getElementById("mergeFontBtn");
+  if (mergeFontBtn) mergeFontBtn.addEventListener("click", async () => {
+    if (!donorFontPath) return;
+    const bytes = await donorZip.files[donorFontPath].async("uint8array");
+    const fontFileName = donorFontPath.split("/").pop();
+    customFontFile = new File([bytes], fontFileName, { type: "font/ttf" });
+    customFontDisplayName = fontFileName.replace(/\.ttf$/i, "");
+    toast(`Đã ghép font "${customFontDisplayName}" — nhớ bấm Xuất file theme`, "ok");
+    if (document.getElementById("panel-font")) renderFontTab();
   });
 }
 
@@ -1561,6 +1673,7 @@ async function renderIconGrid(query) {
   });
   grid.querySelectorAll(".del-btn").forEach(btn => {
     btn.addEventListener("click", () => {
+      pushUndoSnapshot();
       pkgDeleted[currentPkgPath].add(btn.dataset.name);
       toast(`Đã xoá icon "${btn.dataset.name}" — nhớ bấm Xuất file theme`, "ok");
       renderIconGrid(query);
@@ -1676,6 +1789,33 @@ async function rasterToSquareSvgFile(file, size) {
   return new File([svgText], file.name.replace(/\.\w+$/, "") + ".svg", { type: "image/svg+xml" });
 }
 
+async function applyRoundedMask(srcBlobOrDataUrl, radiusPercent, size) {
+  size = size || 512;
+  const dataUrl = (typeof srcBlobOrDataUrl === "string") ? srcBlobOrDataUrl : await blobToDataURL(srcBlobOrDataUrl);
+  const img = await new Promise((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = reject;
+    im.src = dataUrl;
+  });
+  const canvas = document.createElement("canvas");
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const r = (radiusPercent / 100) * (size / 2);
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(0, 0, size, size, r);
+  } else {
+    ctx.moveTo(r, 0); ctx.arcTo(size, 0, size, size, r); ctx.arcTo(size, size, 0, size, r);
+    ctx.arcTo(0, size, 0, 0, r); ctx.arcTo(0, 0, size, 0, r);
+  }
+  ctx.closePath();
+  ctx.clip();
+  const side = Math.min(img.width, img.height);
+  const sx = (img.width - side) / 2, sy = (img.height - side) / 2;
+  ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+  return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), "image/png"));
+}
 function resizeImageTo192(file) {
   return new Promise(async (resolve) => {
     const img = new Image();
@@ -2168,6 +2308,7 @@ document.getElementById("recolorMode").addEventListener("change", (e) => {
   document.getElementById("recolorIntensityField").style.display = e.target.value === "tint" ? "block" : "none";
 });
 document.getElementById("recolorApplyBtn").addEventListener("click", async () => {
+  pushUndoSnapshot();
   const btn = document.getElementById("recolorApplyBtn");
   btn.disabled = true; btn.textContent = "Đang xử lý...";
   const hex = document.getElementById("recolorColor").value;
@@ -2441,7 +2582,7 @@ async function buildPreview(mode) {
 
   async function loadWallpaperUrl(wpFile) {
     try {
-      if (wpFile === "home_wallpaper_0.jpg" && wallpaperReplacements[wpFile]) {
+      if (wallpaperReplacements[wpFile]) {
         return await blobToDataURL(wallpaperReplacements[wpFile]);
       }
       const wpPath = variantMap[wpFile] || variantMap["home_wallpaper_0.jpg"] || wallpaperEntries[wpFile] || wallpaperEntries["home_wallpaper_0.jpg"];
@@ -2556,6 +2697,7 @@ async function buildPreview(mode) {
   } else if (mode === "control") {
     controlPanel.style.display = "block";
     const sysPath = Object.keys(nestedPackages).find(p => nestedPackages[p].label.includes("Trung tâm điều khiển") || nestedPackages[p].label.includes("Thanh trạng thái"));
+    const tint = systemuiTintColor ? argbOrRgbToHex6(systemuiTintColor) : "#4da6ff";
     controlPanel.innerHTML = `
       <div class="ctrl-toprow">
         <div class="ctrl-round">✎</div>
@@ -2566,7 +2708,7 @@ async function buildPreview(mode) {
       </div>
       <div class="ctrl-wide-row">
         <div class="ctrl-media">🎵 Đang phát nhạc</div>
-        <div class="ctrl-toggle"><span class="dot"></span>Wi-Fi</div>
+        <div class="ctrl-toggle" style="background:${tint}22"><span class="dot" style="background:${tint}"></span>Wi-Fi</div>
       </div>
       <div class="ctrl-wide-row">
         <div class="ctrl-media">☀ Độ sáng</div>
@@ -2583,6 +2725,20 @@ async function buildPreview(mode) {
         <div class="ctrl-tile">📳</div>
       </div>
     `;
+    // Ap dung dung hinh dang o (bo tron/oval...) neu anh da chinh trong tab He thong, de xem truoc dung voi thiet ke that
+    if (systemuiPkgPath && controlTileBgPath) {
+      try {
+        const repl = iconReplacements[systemuiPkgPath] && iconReplacements[systemuiPkgPath][controlTileBgPath];
+        const src = repl ? await blobToDataURL(repl) : await safeDataUrlFromZipEntry(nestedPackages[systemuiPkgPath].zip, controlTileBgPath);
+        if (src) {
+          controlPanel.querySelectorAll(".ctrl-tile, .ctrl-toggle, .ctrl-media").forEach(elx => {
+            elx.style.backgroundImage = `url(${src})`;
+            elx.style.backgroundSize = "cover";
+            elx.style.backgroundPosition = "center";
+          });
+        }
+      } catch (e) { /* bo qua, giu hinh dang mac dinh */ }
+    }
     if (sysPath) {
       const pkg = nestedPackages[sysPath];
       const batteryName = pkg.names.find(n => n.includes("ic_statusbar_battery") && !n.includes("figure"));
@@ -2697,7 +2853,7 @@ async function buildOverview() {
 
   async function miniWallpaperUrl(wpFile) {
     try {
-      if (wpFile === "home_wallpaper_0.jpg" && wallpaperReplacements[wpFile]) return await blobToDataURL(wallpaperReplacements[wpFile]);
+      if (wallpaperReplacements[wpFile]) return await blobToDataURL(wallpaperReplacements[wpFile]);
       const p = variantMap[wpFile] || variantMap["home_wallpaper_0.jpg"] || wallpaperEntries[wpFile] || wallpaperEntries["home_wallpaper_0.jpg"];
       if (p) return await blobToDataURL(await mainZip.files[p].async("blob"));
     } catch (e) {}
@@ -2874,8 +3030,29 @@ async function generateAiImage(prompt, size, aspectRatio, referenceDataUrl, isIc
 }
 
 let aiReferenceDataUrl = null;
+let aiUploadedReferenceDataUrl = null;
 let aiGenerating = false;
 
+function svgTextToPngDataUrl(svgText, size) {
+  size = size || 512;
+  return new Promise((resolve) => {
+    try {
+      const svgBlob = new Blob([svgText], { type: "image/svg+xml" });
+      const url = URL.createObjectURL(svgBlob);
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement("canvas");
+        c.width = size; c.height = size;
+        const ctx = c.getContext("2d");
+        ctx.drawImage(img, 0, 0, size, size);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL("image/png"));
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+      img.src = url;
+    } catch (e) { resolve(null); }
+  });
+}
 async function openAiOverlay(type, a, b) {
   aiTargetType = type;
   const label = document.getElementById("aiTargetLabel");
@@ -2910,6 +3087,24 @@ async function openAiOverlay(type, a, b) {
         if (path) aiReferenceDataUrl = await blobToDataURL(await mainZip.files[path].async("blob"));
       }
     } catch (err) { aiReferenceDataUrl = null; }
+  } else if (type === "fp-icon") {
+    label.textContent = "Icon vân tay";
+    costHint.textContent = "AI vẽ ảnh vuông 1024x1024, tool tự đóng gói lại thành .svg như cách tải ảnh tay vẫn làm.";
+    try {
+      if (fpIconReplacement) {
+        aiReferenceDataUrl = await blobToDataURL(fpIconReplacement);
+      } else {
+        const text = await mainZip.files[fpIconPath].async("text");
+        aiReferenceDataUrl = await svgTextToPngDataUrl(text, 512);
+      }
+    } catch (err) { aiReferenceDataUrl = null; }
+  } else if (type === "control-tile-bg") {
+    label.textContent = "Hình dạng ô Trung tâm điều khiển";
+    costHint.textContent = "Gợi ý mô tả: \"ô bo tròn kiểu viên thuốc, nền đơn sắc\" — AI sẽ dựa vào hình dạng hiện tại để vẽ lại. Ảnh vuông 1024x1024, chỉ đổi hình dạng/màu ô, không gộp nhóm ô được.";
+    try {
+      const repl = iconReplacements[systemuiPkgPath] && iconReplacements[systemuiPkgPath][controlTileBgPath];
+      aiReferenceDataUrl = repl ? await blobToDataURL(repl) : await blobToDataURL(await nestedPackages[systemuiPkgPath].zip.files[controlTileBgPath].async("blob"));
+    } catch (err) { aiReferenceDataUrl = null; }
   } else if (type === "charging-icon") {
     label.textContent = "Icon tia sét (sạc pin)";
     costHint.textContent = "AI sẽ dựa vào icon tia sét hiện tại (xem bên dưới) để thiết kế lại theo mô tả — ảnh vuông 1024x1024.";
@@ -2930,12 +3125,38 @@ async function openAiOverlay(type, a, b) {
       }
     } catch (err) { aiReferenceDataUrl = null; }
   }
-  const refBox = document.getElementById("aiReferenceBox");
-  refBox.innerHTML = aiReferenceDataUrl
-    ? `<img src="${aiReferenceDataUrl}"><span>Ảnh gốc — AI sẽ dựa vào đây</span>`
-    : `<span>Không có ảnh gốc — AI sẽ vẽ hoàn toàn mới theo mô tả</span>`;
+  aiUploadedReferenceDataUrl = null;
+  renderAiReferenceBox();
   document.getElementById("aiOverlay").classList.add("open");
 }
+function renderAiReferenceBox() {
+  const refBox = document.getElementById("aiReferenceBox");
+  const activeUrl = aiUploadedReferenceDataUrl || aiReferenceDataUrl;
+  if (activeUrl) {
+    const srcLabel = aiUploadedReferenceDataUrl ? "Ảnh anh vừa tải lên — AI sẽ dựa vào đây" : "Ảnh gốc trong theme — AI sẽ dựa vào đây";
+    refBox.innerHTML = `<img src="${activeUrl}"><span>${srcLabel}</span>
+       <label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13px;font-weight:400">
+         <input type="checkbox" id="aiUseRefCheckbox" checked> Dựa vào ảnh này (bỏ chọn để AI vẽ hoàn toàn mới, chỉ theo mô tả)
+       </label>
+       <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+         <button type="button" class="btn small" id="aiUploadRefBtn">${aiUploadedReferenceDataUrl ? "Đổi ảnh khác" : "Tải ảnh riêng lên thay vì ảnh này"}</button>
+         ${aiUploadedReferenceDataUrl && aiReferenceDataUrl ? '<button type="button" class="btn small" id="aiRevertRefBtn">Dùng lại ảnh gốc trong theme</button>' : ""}
+       </div>`;
+  } else {
+    refBox.innerHTML = `<span>Không có ảnh gốc — AI sẽ vẽ hoàn toàn mới theo mô tả</span>
+       <div style="margin-top:8px"><button type="button" class="btn small" id="aiUploadRefBtn">Tải ảnh lên để AI dựa vào (không bắt buộc)</button></div>`;
+  }
+  const uploadBtn = document.getElementById("aiUploadRefBtn");
+  if (uploadBtn) uploadBtn.addEventListener("click", () => document.getElementById("aiUploadRefInput").click());
+  const revertBtn = document.getElementById("aiRevertRefBtn");
+  if (revertBtn) revertBtn.addEventListener("click", () => { aiUploadedReferenceDataUrl = null; renderAiReferenceBox(); });
+}
+document.getElementById("aiUploadRefInput").addEventListener("change", async (e) => {
+  if (!e.target.files.length) return;
+  aiUploadedReferenceDataUrl = await blobToDataURL(e.target.files[0]);
+  renderAiReferenceBox();
+  e.target.value = "";
+});
 document.getElementById("aiCancelBtn").addEventListener("click", () => {
   document.getElementById("aiOverlay").classList.remove("open");
 });
@@ -2950,11 +3171,14 @@ async function runAiGenerate() {
   const retryBtn = document.getElementById("aiRetryBtn");
   if (btn) { btn.disabled = true; btn.textContent = "Đang tạo ảnh..."; }
   if (retryBtn) { retryBtn.disabled = true; retryBtn.textContent = "Đang tạo lại..."; }
-  const size = (aiTargetType === "icon" || aiTargetType === "charging-icon") ? "1024x1024" : "1024x1536";
-  const aspectRatio = (aiTargetType === "icon" || aiTargetType === "charging-icon") ? "1:1" : "9:16";
+  const size = (aiTargetType === "icon" || aiTargetType === "charging-icon" || aiTargetType === "control-tile-bg" || aiTargetType === "fp-icon") ? "1024x1024" : "1024x1536";
+  const aspectRatio = (aiTargetType === "icon" || aiTargetType === "charging-icon" || aiTargetType === "control-tile-bg" || aiTargetType === "fp-icon") ? "1:1" : "9:16";
   let blob = null;
   try {
-    blob = await generateAiImage(promptText, size, aspectRatio, aiReferenceDataUrl);
+    const useRefCheckbox = document.getElementById("aiUseRefCheckbox");
+    const activeRef = aiUploadedReferenceDataUrl || aiReferenceDataUrl;
+    const refToUse = (useRefCheckbox && !useRefCheckbox.checked) ? null : activeRef;
+    blob = await generateAiImage(promptText, size, aspectRatio, refToUse);
   } finally {
     aiGenerating = false;
     if (btn) { btn.disabled = false; btn.textContent = "Tạo ảnh"; }
@@ -2963,7 +3187,7 @@ async function runAiGenerate() {
   if (!blob) return;
   aiPendingBlob = blob;
   const newUrl = URL.createObjectURL(blob);
-  const oldUrl = aiReferenceDataUrl || newUrl;
+  const oldUrl = aiUploadedReferenceDataUrl || aiReferenceDataUrl || newUrl;
   document.getElementById("aiCompareBox").style.display = "flex";
   document.getElementById("aiCompareBox").innerHTML = `
     <div class="ai-compare-item"><img src="${oldUrl}"><div class="lbl">Ảnh cũ</div></div>
@@ -2993,6 +3217,17 @@ document.getElementById("aiUseNewBtn").addEventListener("click", async () => {
     chargingReplacements[chargingIconPath] = blob;
     document.getElementById("chargingIconThumb") && (document.getElementById("chargingIconThumb").innerHTML = `<img src="${await blobToDataURL(blob)}">`);
     toast("Đã tạo icon tia sét bằng AI", "ok");
+  } else if (aiTargetType === "control-tile-bg") {
+    if (!iconReplacements[systemuiPkgPath]) iconReplacements[systemuiPkgPath] = {};
+    iconReplacements[systemuiPkgPath][controlTileBgPath] = blob;
+    document.getElementById("controlTileBgThumb") && (document.getElementById("controlTileBgThumb").innerHTML = `<img src="${await blobToDataURL(blob)}">`);
+    toast("Đã tạo hình dạng ô mới bằng AI — nhớ bấm Xuất file theme", "ok");
+  } else if (aiTargetType === "fp-icon") {
+    fpIconReplacement = await rasterToSquareSvgFile(blob);
+    document.getElementById("fpThumb") && (document.getElementById("fpThumb").innerHTML = `<img src="${await blobToDataURL(fpIconReplacement)}">`);
+    const st = document.getElementById("fpStatus");
+    if (st) { st.textContent = "Đã chọn ảnh mới — nhớ bấm Xuất file theme"; st.className = "status changed"; }
+    toast("Đã tạo icon vân tay bằng AI", "ok");
   } else {
     if (aiTargetWpModel === "phone") {
       wallpaperReplacements[aiTargetWpName] = blob;
@@ -3029,7 +3264,32 @@ function renderSystemTab() {
         <button class="btn small" id="saveSystemuiPresetBtn">Lưu bộ riêng</button>
       </div>
       <div id="systemuiPresetList" style="margin-top:8px"></div>
-    </div>`;
+
+      ${controlTileBgPath ? `
+      <div class="card-hint" style="margin-top:16px">Bo tròn ô Trung tâm điều khiển (kiểu iPhone) — chỉ đổi được hình dạng/màu từng ô, không gộp nhóm ô lại được như iPhone (giới hạn thật của theme Honor, đã nói ở trên).</div>
+      <div class="wallpaper-item">
+        <div class="wallpaper-thumb" id="controlTileBgThumb"></div>
+        <div class="wallpaper-info">
+          <div class="name">Hình dạng ô (qs_tile_bg)</div>
+          <div class="path">${escapeHtml(controlTileBgPath)}</div>
+        </div>
+        <div>
+          <button class="btn small" id="controlTileAiBtn">Tạo bo tròn bằng AI</button>
+          <button class="btn small" id="controlTileUploadBtn" style="margin-left:6px">Tải ảnh riêng</button>
+          <input type="file" id="controlTileUploadInput" accept="image/*" style="display:none">
+        </div>
+      </div>` : ""}
+      ${controlMaskPath ? `<div class="hint">Còn khung viền toàn bảng (${escapeHtml(controlMaskPath)}) là ảnh .9.png — sang tab <b>Icon ứng dụng</b>, chọn gói "Trung tâm điều khiển", tìm đúng tên file đó, bấm nút "Vùng co giãn" để sửa an toàn (ảnh loại này sửa trực tiếp ở đây dễ vỡ hình).</div>` : ""}
+    </div>
+    ${(controlTileBgPath && fpIconPath) ? `
+    <div class="card">
+      <h3>Đồng bộ hình dạng — Vân tay &amp; Ô Trung tâm điều khiển</h3>
+      <div class="card-hint">Bo lại góc CẢ 2 ảnh (icon vân tay và hình dạng ô Trung tâm điều khiển hiện tại) theo cùng 1 độ bo, cho khớp phong cách — không đổi nội dung ảnh, chỉ bo lại góc.</div>
+      <div class="field"><label>Độ bo góc: <span id="syncShapeValue">50</span>% (0 = vuông, 50 = tròn hoàn toàn)</label>
+        <input type="range" id="syncShapeRange" min="0" max="50" value="50" style="width:100%">
+      </div>
+      <button class="btn primary" id="syncShapeApplyBtn">Áp dụng cho cả 2</button>
+    </div>` : ""}`;
   } else {
     html += `<div class="card"><h3>Màu trung tâm điều khiển</h3><div class="empty-state">Theme này không có file cấu hình màu trung tâm điều khiển (hoặc chưa mở gói "Trung tâm điều khiển" chứa nó).</div></div>`;
   }
@@ -3095,6 +3355,21 @@ function renderSystemTab() {
       if (!blob) {
         try {
           const buf = await nestedPackages[aodPkgPath].zip.files[aodDigitBgPaths[0]].async("uint8array");
+          blob = new Blob([buf], { type: "image/png" });
+        } catch (e) { /* bo qua */ }
+      }
+      if (blob) thumbEl.innerHTML = `<img src="${await blobToDataURL(blob)}">`;
+    })();
+  }
+  if (controlTileBgPath) {
+    (async () => {
+      const thumbEl = document.getElementById("controlTileBgThumb");
+      if (!thumbEl) return;
+      const existing = iconReplacements[systemuiPkgPath] && iconReplacements[systemuiPkgPath][controlTileBgPath];
+      let blob = existing;
+      if (!blob) {
+        try {
+          const buf = await nestedPackages[systemuiPkgPath].zip.files[controlTileBgPath].async("uint8array");
           blob = new Blob([buf], { type: "image/png" });
         } catch (e) { /* bo qua */ }
       }
@@ -3188,6 +3463,66 @@ function renderSystemTab() {
       toast("Đã đổi ảnh nền AOD" + (aodDigitBgPaths.length > 1 ? ` (áp dụng cho cả ${aodDigitBgPaths.length} bản)` : ""), "ok");
     });
   }
+  const controlTileUploadBtn = document.getElementById("controlTileUploadBtn");
+  const controlTileUploadInput = document.getElementById("controlTileUploadInput");
+  if (controlTileUploadBtn && controlTileUploadInput) {
+    controlTileUploadBtn.addEventListener("click", () => controlTileUploadInput.click());
+    controlTileUploadInput.addEventListener("change", async (e) => {
+      if (!e.target.files.length) return;
+      const f = e.target.files[0];
+      if (!iconReplacements[systemuiPkgPath]) iconReplacements[systemuiPkgPath] = {};
+      iconReplacements[systemuiPkgPath][controlTileBgPath] = f;
+      document.getElementById("controlTileBgThumb").innerHTML = `<img src="${await blobToDataURL(f)}">`;
+      toast("Đã đổi hình dạng ô — nhớ bấm Xuất file theme", "ok");
+    });
+  }
+  const controlTileAiBtn = document.getElementById("controlTileAiBtn");
+  if (controlTileAiBtn) controlTileAiBtn.addEventListener("click", () => openAiOverlay("control-tile-bg", null, null));
+  const syncShapeRange = document.getElementById("syncShapeRange");
+  if (syncShapeRange) {
+    syncShapeRange.addEventListener("input", () => {
+      document.getElementById("syncShapeValue").textContent = syncShapeRange.value;
+    });
+  }
+  const syncShapeApplyBtn = document.getElementById("syncShapeApplyBtn");
+  if (syncShapeApplyBtn) syncShapeApplyBtn.addEventListener("click", async () => {
+    pushUndoSnapshot();
+    syncShapeApplyBtn.disabled = true;
+    syncShapeApplyBtn.textContent = "Đang áp dụng...";
+    try {
+      const radiusPercent = Number(document.getElementById("syncShapeRange").value);
+      // 1. O Trung tam dieu khien
+      const tileRepl = iconReplacements[systemuiPkgPath] && iconReplacements[systemuiPkgPath][controlTileBgPath];
+      const tileSrc = tileRepl || await nestedPackages[systemuiPkgPath].zip.files[controlTileBgPath].async("blob");
+      const newTileBlob = await applyRoundedMask(tileSrc, radiusPercent, 256);
+      if (!iconReplacements[systemuiPkgPath]) iconReplacements[systemuiPkgPath] = {};
+      iconReplacements[systemuiPkgPath][controlTileBgPath] = newTileBlob;
+      const tileThumb = document.getElementById("controlTileBgThumb");
+      if (tileThumb) tileThumb.innerHTML = `<img src="${await blobToDataURL(newTileBlob)}">`;
+
+      // 2. Icon van tay (rasterize truoc neu la svg vector, roi bo goc, roi dong goi lai thanh svg)
+      let fpSrcDataUrl;
+      if (fpIconReplacement) {
+        fpSrcDataUrl = await blobToDataURL(fpIconReplacement);
+      } else {
+        const text = await mainZip.files[fpIconPath].async("text");
+        fpSrcDataUrl = await svgTextToPngDataUrl(text, 512);
+      }
+      const roundedFpBlob = await applyRoundedMask(fpSrcDataUrl, radiusPercent, 512);
+      fpIconReplacement = await rasterToSquareSvgFile(new File([roundedFpBlob], "fingerprint.png", { type: "image/png" }), 512);
+      const fpThumb = document.getElementById("fpThumb");
+      if (fpThumb) fpThumb.innerHTML = `<img src="${await blobToDataURL(fpIconReplacement)}">`;
+      const fpStatus = document.getElementById("fpStatus");
+      if (fpStatus) { fpStatus.textContent = "Đã chọn ảnh mới — nhớ bấm Xuất file theme"; fpStatus.className = "status changed"; }
+
+      toast("Đã bo lại góc cho cả icon vân tay và ô Trung tâm điều khiển — nhớ bấm Xuất file theme", "ok");
+    } catch (err) {
+      toast("Không áp dụng được — thử lại: " + err.message, "err");
+    } finally {
+      syncShapeApplyBtn.disabled = false;
+      syncShapeApplyBtn.textContent = "Áp dụng cho cả 2";
+    }
+  });
   const swatchWrapAod = document.getElementById("aodPresetSwatches");
   if (swatchWrapAod) {
     swatchWrapAod.innerHTML = AOD_PRESET_COLORS.map(c => `<div class="swatch" data-c="${c}" style="background:${c}" title="Màu mẫu"></div>`).join("");
@@ -3441,6 +3776,7 @@ let batchAiCancelled = false;
 
 let batchAiApproved = false;
 let batchAiSampleName = null;
+let batchAiUploadedRef = null;
 let batchAiSampleBlob = null;
 
 function getBatchTargetNames(query) {
@@ -3473,6 +3809,7 @@ function renderSelectModeBar(matches) {
     renderIconGrid(document.getElementById("iconSearch").value.trim().toLowerCase());
   });
   document.getElementById("selDeleteBtn").addEventListener("click", () => {
+    pushUndoSnapshot();
     if (!pkgDeleted[currentPkgPath]) pkgDeleted[currentPkgPath] = new Set();
     selectedIcons.forEach(n => pkgDeleted[currentPkgPath].add(n));
     toast(`Đã xoá ${selectedIcons.size} icon — nhớ bấm Xuất file theme`, "ok");
@@ -3500,6 +3837,8 @@ function openBatchAiPanel() {
   batchAiApproved = false;
   batchAiSampleName = activeNames[0] || null;
   batchAiSampleBlob = null;
+  batchAiUploadedRef = null;
+  document.getElementById("batchAiUploadRefName").textContent = "Chưa chọn ảnh — mặc định dùng icon gốc từng app";
   const usingSelection = selectMode && selectedIcons.size > 0;
   let scopeText = usingSelection
     ? `Sẽ áp dụng cho ${activeNames.length} icon anh đã TÍCH CHỌN.`
@@ -3511,6 +3850,13 @@ function openBatchAiPanel() {
   document.getElementById("batchAiApplyBtn").textContent = "Tạo icon mẫu trước";
   document.getElementById("batchAiOverlay").classList.add("open");
 }
+document.getElementById("batchAiUploadRefBtn").addEventListener("click", () => document.getElementById("batchAiUploadRefInput").click());
+document.getElementById("batchAiUploadRefInput").addEventListener("change", async (e) => {
+  if (!e.target.files.length) return;
+  batchAiUploadedRef = await blobToDataURL(e.target.files[0]);
+  document.getElementById("batchAiUploadRefName").textContent = "Đã chọn: " + e.target.files[0].name + " — dùng ảnh này cho cả loạt";
+  e.target.value = "";
+});
 document.getElementById("batchAiCancelBtn").addEventListener("click", () => {
   batchAiCancelled = true;
   document.getElementById("batchAiOverlay").classList.remove("open");
@@ -3525,6 +3871,8 @@ document.getElementById("batchAiApplyBtn").addEventListener("click", async () =>
   const repl = iconReplacements[currentPkgPath];
   const btn = document.getElementById("batchAiApplyBtn");
   const progressEl = document.getElementById("batchAiProgress");
+  const useRefChk = document.getElementById("batchAiUseRefCheckbox");
+  const useRef = !useRefChk || useRefChk.checked;
 
   if (!batchAiApproved) {
     // Buoc 1: chi tao 1 icon mau de duyet
@@ -3532,7 +3880,11 @@ document.getElementById("batchAiApplyBtn").addEventListener("click", async () =>
     btn.disabled = true;
     progressEl.innerHTML = `Đang tạo icon mẫu "${batchAiSampleName}"...`;
     let refUrl = null;
-    try { refUrl = repl[batchAiSampleName] ? await blobToDataURL(repl[batchAiSampleName]) : await safeDataUrlFromZipEntry(pkg.zip, batchAiSampleName); } catch (e) {}
+    if (batchAiUploadedRef) {
+      refUrl = batchAiUploadedRef;
+    } else if (useRef) {
+      try { refUrl = repl[batchAiSampleName] ? await blobToDataURL(repl[batchAiSampleName]) : await safeDataUrlFromZipEntry(pkg.zip, batchAiSampleName); } catch (e) {}
+    }
     const blob = await generateAiImage(promptText, "1024x1024", "1:1", refUrl, true);
     btn.disabled = false;
     if (!blob) { progressEl.textContent = "Tạo mẫu thất bại — thử lại hoặc đổi mô tả."; return; }
@@ -3545,6 +3897,8 @@ document.getElementById("batchAiApplyBtn").addEventListener("click", async () =>
   }
 
   // Buoc 2: da duyet mau, ap dung hang loat (giu lai mau da tao cho chinh icon do, khong tao lai)
+  // Chay song song nhieu icon cung luc (gioi han 4 luong) de nhanh hon nhieu so voi chay tung cai
+  pushUndoSnapshot();
   batchAiCancelled = false;
   btn.disabled = true;
   if (batchAiSampleName && batchAiSampleBlob) {
@@ -3552,26 +3906,36 @@ document.getElementById("batchAiApplyBtn").addEventListener("click", async () =>
   }
   let done = batchAiSampleBlob ? 1 : 0, failed = 0;
   const remaining = activeNames.filter(n => n !== batchAiSampleName);
-  for (const name of remaining) {
-    if (batchAiCancelled) break;
-    progressEl.textContent = `Đang xử lý ${done + failed + 1}/${activeNames.length}: ${name}...`;
-    try {
-      let refUrl = null;
+  const CONCURRENCY = 4;
+  let cursor = 0;
+  async function worker() {
+    while (cursor < remaining.length) {
+      if (batchAiCancelled) return;
+      const name = remaining[cursor++];
+      progressEl.textContent = `Đang xử lý song song ${done + failed + 1}/${activeNames.length} (${CONCURRENCY} luồng cùng lúc)...`;
       try {
-        refUrl = repl[name] ? await blobToDataURL(repl[name]) : await safeDataUrlFromZipEntry(pkg.zip, name);
-      } catch (e) { refUrl = null; }
-      const blob = await generateAiImage(promptText, "1024x1024", "1:1", refUrl, true);
-      if (blob) {
-        repl[name] = await resizeImageTo192(blob);
-        done++;
-      } else {
+        let refUrl = null;
+        if (batchAiUploadedRef) {
+          refUrl = batchAiUploadedRef;
+        } else if (useRef) {
+          try {
+            refUrl = repl[name] ? await blobToDataURL(repl[name]) : await safeDataUrlFromZipEntry(pkg.zip, name);
+          } catch (e) { refUrl = null; }
+        }
+        const blob = await generateAiImage(promptText, "1024x1024", "1:1", refUrl, true);
+        if (blob) {
+          repl[name] = await resizeImageTo192(blob);
+          done++;
+        } else {
+          failed++;
+        }
+      } catch (err) {
         failed++;
       }
-    } catch (err) {
-      failed++;
+      renderIconGrid(query);
     }
-    renderIconGrid(query);
   }
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, remaining.length) }, worker));
   renderIconGrid(query);
   btn.disabled = false;
   progressEl.textContent = `Xong: ${done} icon tạo thành công, ${failed} lỗi/bỏ qua.`;
@@ -3593,10 +3957,8 @@ function cloneDeletedMap(obj) {
   return out;
 }
 
-function saveDraft() {
-  const nameInput = document.getElementById("draftNameInput");
-  const name = nameInput.value.trim() || ("Bản nháp " + (savedDrafts.length + 1));
-  const snapshot = {
+function buildStateSnapshot(name) {
+  return {
     name,
     time: new Date().toLocaleTimeString("vi-VN"),
     descXmlRaw, clockJsonRaw, unlockXmlRaw, unlockStyle,
@@ -3614,14 +3976,8 @@ function saveDraft() {
     wallpaperVariantReplacements: { foldable: { ...wallpaperVariantReplacements.foldable }, tablet: { ...wallpaperVariantReplacements.tablet } },
     pkgTextEdits: JSON.parse(JSON.stringify(pkgTextEdits)),
   };
-  savedDrafts.push(snapshot);
-  nameInput.value = "";
-  renderDraftList();
-  toast(`Đã lưu bản nháp "${name}"`, "ok");
 }
-
-function restoreDraft(idx) {
-  const s = savedDrafts[idx];
+function restoreStateSnapshot(s) {
   if (!s) return;
   descXmlRaw = s.descXmlRaw; clockJsonRaw = s.clockJsonRaw; unlockXmlRaw = s.unlockXmlRaw; unlockStyle = s.unlockStyle;
   clockFields = { ...s.clockFields };
@@ -3639,6 +3995,27 @@ function restoreDraft(idx) {
   wallpaperVariantReplacements = { foldable: { ...s.wallpaperVariantReplacements.foldable }, tablet: { ...s.wallpaperVariantReplacements.tablet } };
   pkgTextEdits = JSON.parse(JSON.stringify(s.pkgTextEdits));
   renderInfoTab(); renderWallpaperTab(); renderLockTab(); renderFingerprintTab(); renderIconsTab(); renderSystemTab(); renderFontTab(); renderChargingTab();
+}
+let undoSnapshot = null;
+function pushUndoSnapshot() {
+  try { undoSnapshot = buildStateSnapshot("__undo__"); } catch (e) { undoSnapshot = null; }
+  const btn = document.getElementById("undoLastBtn");
+  if (btn) btn.disabled = false;
+}
+function saveDraft() {
+  const nameInput = document.getElementById("draftNameInput");
+  const name = nameInput.value.trim() || ("Bản nháp " + (savedDrafts.length + 1));
+  const snapshot = buildStateSnapshot(name);
+  savedDrafts.push(snapshot);
+  nameInput.value = "";
+  renderDraftList();
+  toast(`Đã lưu bản nháp "${name}"`, "ok");
+}
+
+function restoreDraft(idx) {
+  const s = savedDrafts[idx];
+  if (!s) return;
+  restoreStateSnapshot(s);
   toast(`Đã khôi phục "${s.name}"`, "ok");
 }
 
@@ -3824,6 +4201,7 @@ async function applyFilterToImage(srcDataUrl, kind, color1, color2) {
 }
 
 document.getElementById("filterApplyBtn").addEventListener("click", async () => {
+  pushUndoSnapshot();
   const kind = document.getElementById("filterKindSelect").value;
   const color1 = document.getElementById("filterColor1").value;
   const color2 = document.getElementById("filterColor2").value;
@@ -3862,18 +4240,69 @@ function renderTreeTab() {
   document.getElementById("panel-tree").innerHTML = html;
 }
 
-document.querySelectorAll(".tab").forEach(tab => {
-  tab.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-    document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
-    tab.classList.add("active");
-    document.getElementById("panel-" + tab.dataset.tab).classList.add("active");
-    if (tab.dataset.tab === "preview" && mainZip) {
-      const activeModeBtn = document.querySelector("#previewModeRow .active-tool");
-      buildPreview(activeModeBtn ? activeModeBtn.dataset.mode : "home");
-    }
+const TAB_GROUPS = [
+  { id: "theme", label: "📁 Theme của tôi", children: [{ id: "info", label: "Thông tin & mở file" }] },
+  { id: "media", label: "🖼️ Hình ảnh", children: [
+      { id: "wallpaper", label: "Hình nền" },
+      { id: "icons", label: "Icon ứng dụng" },
+      { id: "fingerprint", label: "Icon vân tay" },
+    ] },
+  { id: "style", label: "🎨 Màu & Hiệu ứng", children: [
+      { id: "lock", label: "Đồng hồ & mở khoá" },
+      { id: "system", label: "Hệ thống & AOD" },
+      { id: "charging", label: "Sạc pin" },
+      { id: "font", label: "Font chữ" },
+    ] },
+  { id: "preview", label: "📱 Xem trước", children: [{ id: "preview", label: "Xem trước điện thoại" }] },
+  { id: "export", label: "📦 Xuất & Kiểm tra", children: [{ id: "export", label: "Xuất & kiểm tra" }] },
+  { id: "advanced", label: "⚙️ Nâng cao", children: [{ id: "tree", label: "Cấu trúc file" }] },
+];
+let lastChildByGroup = {};
+
+function activatePanel(tabId) {
+  document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+  const panelEl = document.getElementById("panel-" + tabId);
+  if (panelEl) panelEl.classList.add("active");
+  if (tabId === "preview" && mainZip) {
+    const activeModeBtn = document.querySelector("#previewModeRow .active-tool");
+    buildPreview(activeModeBtn ? activeModeBtn.dataset.mode : "home");
+  }
+}
+
+function renderSubTabs(group) {
+  const subEl = document.getElementById("tabsSub");
+  if (group.children.length <= 1) {
+    subEl.style.display = "none";
+    subEl.innerHTML = "";
+    return;
+  }
+  subEl.style.display = "flex";
+  const activeChild = lastChildByGroup[group.id] || group.children[0].id;
+  subEl.innerHTML = group.children.map(c =>
+    `<div class="tab-sub ${c.id === activeChild ? "active" : ""}" data-tab="${c.id}">${escapeHtml(c.label)}</div>`
+  ).join("");
+  subEl.querySelectorAll(".tab-sub").forEach(sub => {
+    sub.addEventListener("click", () => {
+      subEl.querySelectorAll(".tab-sub").forEach(s => s.classList.remove("active"));
+      sub.classList.add("active");
+      lastChildByGroup[group.id] = sub.dataset.tab;
+      activatePanel(sub.dataset.tab);
+    });
+  });
+}
+
+document.querySelectorAll(".tab-main").forEach(mainTab => {
+  mainTab.addEventListener("click", () => {
+    document.querySelectorAll(".tab-main").forEach(t => t.classList.remove("active"));
+    mainTab.classList.add("active");
+    const group = TAB_GROUPS.find(g => g.id === mainTab.dataset.group);
+    renderSubTabs(group);
+    const activeChild = lastChildByGroup[group.id] || group.children[0].id;
+    activatePanel(activeChild);
   });
 });
+// Kich hoat nhom dau tien luc tai trang
+renderSubTabs(TAB_GROUPS[0]);
 
 function escapeHtml(s) { return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 function escapeAttr(s) { return escapeHtml(s).replace(/"/g, "&quot;"); }
@@ -3914,6 +4343,64 @@ function buildFinalDescXml() {
   return xml;
 }
 
+document.getElementById("undoLastBtn").addEventListener("click", () => {
+  if (!undoSnapshot) { toast("Chưa có thao tác nào để hoàn tác.", "ok"); return; }
+  const s = undoSnapshot;
+  undoSnapshot = null;
+  document.getElementById("undoLastBtn").disabled = true;
+  restoreStateSnapshot(s);
+  toast("Đã hoàn tác về trước thao tác vừa rồi.", "ok");
+});
+document.getElementById("checkThemeBtn").addEventListener("click", async () => {
+  const box = document.getElementById("checkThemeResult");
+  box.style.display = "block";
+  box.innerHTML = "Đang quét...";
+  const warnings = [];
+  const errors = [];
+  const okLines = [];
+
+  // 1. Icon rong / hong (kich thuoc 0 hoac khong doc duoc)
+  let brokenIconCount = 0;
+  for (const pkgPath of Object.keys(iconReplacements)) {
+    for (const name of Object.keys(iconReplacements[pkgPath])) {
+      const blob = iconReplacements[pkgPath][name];
+      if (!blob || blob.size === 0) brokenIconCount++;
+    }
+  }
+  if (brokenIconCount > 0) errors.push(`${brokenIconCount} icon mới bị rỗng (0 byte) — có thể do lỗi khi tạo/tải ảnh, nên xoá và làm lại.`);
+
+  // 2. Theme co du 4 mau dong bo he thong khong (neu co goi Trung tam dieu khien)
+  if (systemuiPkgPath && !systemuiTintColor) {
+    warnings.push(`Theme có gói Trung tâm điều khiển nhưng chưa dò ra được màu hiện tại — kiểm tra lại tab Hệ thống & AOD.`);
+  }
+
+  // 4. AOD: co goi nhung fontcolor rong
+  if (aodPkgPath && aodFields && !aodFields.fontcolor) {
+    warnings.push(`Gói AOD có trong theme nhưng chưa xác định được màu chữ đồng hồ — mở tab Hệ thống & AOD kiểm tra lại.`);
+  }
+
+  // 5. Nhung viec con "chua xac nhan du" luon nhac, khong phu thuoc theme nao
+  const alwaysNote = [
+    "Chưa có ai cài thử file xuất ra từ tool này lên máy Honor thật để xác nhận chạy đúng 100% — vẫn nên cài thử và kiểm tra kỹ trước khi dùng chính thức.",
+    "4 kiểu mở khoá mô phỏng (video/vr/dynamic/amazing-18x9) nếu anh có đổi, chưa xác nhận hiển thị đúng trên máy thật.",
+    "Số \"kiểu đồng hồ\"/\"kiểu nền\" AOD (nếu anh có đổi) tuỳ máy, cần tự thử trên máy thật.",
+    "Ảnh dạng \".9.png\" nếu chỉ tải ảnh thường đè lên (không qua nút \"Vùng co giãn\") dễ bị vỡ hình khi co giãn trên máy thật — nhớ dùng đúng nút đó cho loại ảnh này.",
+  ];
+
+  let html = "";
+  if (errors.length === 0 && warnings.length === 0) {
+    html += `<div class="ok-line">✓ Không thấy lỗi rõ ràng nào trong những gì tool kiểm tra được.</div>`;
+  }
+  if (errors.length > 0) {
+    html += `<div class="err-line">⚠ Lỗi nên sửa trước khi xuất:</div><ul>` + errors.map(e => `<li class="err-line">${escapeHtml(e)}</li>`).join("") + `</ul>`;
+  }
+  if (warnings.length > 0) {
+    html += `<div class="warn-line" style="margin-top:8px">Đáng chú ý:</div><ul>` + warnings.map(w => `<li class="warn-line">${escapeHtml(w)}</li>`).join("") + `</ul>`;
+  }
+  html += `<div style="margin-top:10px;color:var(--text-dim)">Nhắc thêm — không đo được bằng máy tính, phải tự kiểm tra trên máy thật:</div><ul>` + alwaysNote.map(n => `<li style="color:var(--text-dim)">${escapeHtml(n)}</li>`).join("") + `</ul>`;
+  html += `<div class="hint" style="margin-top:8px">Lưu ý: đây chỉ là kiểm tra sơ bộ trên máy tính — không thay được việc cài thử lên máy Honor thật.</div>`;
+  box.innerHTML = html;
+});
 document.getElementById("exportBtn").addEventListener("click", async () => {
   const btn = document.getElementById("exportBtn");
   btn.disabled = true;
