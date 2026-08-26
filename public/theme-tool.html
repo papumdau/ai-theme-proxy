@@ -635,6 +635,7 @@ let donorChargingFiles = null;
 let donorWallpapers = {};
 let donorFontPath = null;
 let donorFpIconPath = null;
+let donorCarouselFiles = {}; // { day: {home_dark: "duong dan trong file donor", ...}, ... }
 let mergedChargingBlobs = null;
 let donorNestedPackages = {};
 
@@ -1625,6 +1626,27 @@ async function handleDonorFile(e) {
   const paths = Object.keys(donorZip.files).filter(p => !donorZip.files[p].dir);
   donorFontPath = paths.find(p => p.toLowerCase().endsWith(".ttf")) || null;
   donorFpIconPath = paths.find(p => p.includes("fingerprint_icon") && p.toLowerCase().endsWith(".svg")) || null;
+  donorCarouselFiles = {};
+  const donorMetaPath = paths.find(p => p.split("/").pop() === "wallpaper_meta.json");
+  if (donorMetaPath) {
+    try {
+      const text = await donorZip.files[donorMetaPath].async("text");
+      const donorMetaJson = JSON.parse(text);
+      const allPaths = new Set();
+      const collect = (obj) => {
+        if (!obj) return;
+        if (Array.isArray(obj)) { obj.forEach(collect); return; }
+        if (typeof obj === "object") { Object.values(obj).forEach(collect); return; }
+        if (typeof obj === "string") allPaths.add(obj);
+      };
+      collect(donorMetaJson);
+      donorCarouselFiles = { day: {}, dusk: {}, night: {} };
+      for (const p of allPaths) {
+        const m = p.match(/carouselWallpapers\/(day|dusk|night)\/([^/]+)\.(jpg|jpeg|png)$/i);
+        if (m) donorCarouselFiles[m[1]][m[2]] = p;
+      }
+    } catch (e) { donorCarouselFiles = {}; /* bo qua, khong lam gi them */ }
+  }
   const knownWpNames = Object.keys(WALLPAPER_LABELS);
   for (const p of paths) {
     const base = p.split("/").pop();
@@ -1672,7 +1694,8 @@ async function handleDonorFile(e) {
 
   const donorPaths = Object.keys(donorNestedPackages);
   const donorWpNames = Object.keys(donorWallpapers);
-  if (donorPaths.length === 0 && !donorChargingFiles && donorWpNames.length === 0 && !donorFontPath && !donorFpIconPath) {
+  const hasDonorCarousel = Object.keys(donorCarouselFiles).some(p => Object.keys(donorCarouselFiles[p] || {}).length > 0);
+  if (donorPaths.length === 0 && !donorChargingFiles && donorWpNames.length === 0 && !donorFontPath && !donorFpIconPath && !hasDonorCarousel) {
     listEl.innerHTML = '<div class="hint">File này không có gói, hình nền, font hay icon vân tay nào để ghép.</div>';
     return;
   }
@@ -1725,6 +1748,16 @@ async function handleDonorFile(e) {
         <div class="path">${escapeHtml(donorFpIconPath)}</div>
       </div>
       <button class="btn small" id="mergeFpBtn" ${fpIconPath ? "" : "disabled"}>${fpIconPath ? "Ghép icon này" : "Theme đang mở không có chỗ vân tay"}</button>
+    </div>`;
+  }
+  if (hasDonorCarousel) {
+    const targetHasCarousel = !!carouselMetaJson;
+    itemsHtml += `<div class="wallpaper-item">
+      <div class="wallpaper-info">
+        <div class="name">Hình nền Sáng/Tối (theo giờ trong ngày)</div>
+        <div class="path">18 ảnh trong wallpaper_meta.json của file này</div>
+      </div>
+      <button class="btn small" id="mergeCarouselBtn" ${targetHasCarousel ? "" : "disabled"}>${targetHasCarousel ? "Ghép cả bộ" : "Theme đang mở không hỗ trợ Sáng/Tối"}</button>
     </div>`;
   }
   listEl.innerHTML = itemsHtml;
@@ -1808,6 +1841,28 @@ async function handleDonorFile(e) {
     fpIconReplacement = new File([bytes], "fingerprint_icon.svg", { type: "image/svg+xml" });
     toast("Đã ghép icon vân tay — nhớ bấm Xuất file theme", "ok");
     if (document.getElementById("panel-fingerprint")) renderFingerprintTab();
+  });
+  const mergeCarouselBtn = document.getElementById("mergeCarouselBtn");
+  if (mergeCarouselBtn) mergeCarouselBtn.addEventListener("click", async () => {
+    if (!carouselMetaJson) return;
+    let matched = 0, missed = 0;
+    for (const period of Object.keys(carouselFiles)) {
+      for (const key of Object.keys(carouselFiles[period] || {})) {
+        const targetPath = carouselFiles[period][key];
+        const donorPath = donorCarouselFiles[period] && donorCarouselFiles[period][key];
+        if (donorPath) {
+          try {
+            const bytes = await donorZip.files[donorPath].async("uint8array");
+            carouselReplacements[targetPath] = new Blob([bytes]);
+            matched++;
+          } catch (e) { missed++; }
+        } else {
+          missed++;
+        }
+      }
+    }
+    toast(`Đã ghép ${matched} ảnh Sáng/Tối từ file này${missed ? `, ${missed} ảnh không khớp/bỏ qua` : ""} — nhớ bấm Xuất file theme`, "ok");
+    if (document.getElementById("panel-wallpaper")) renderWallpaperTab();
   });
 }
 
