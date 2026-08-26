@@ -245,8 +245,8 @@
   .tool-row .btn.active-tool { background: var(--accent-dim); border-color: var(--accent-dim); color: #fff; }
   #textEditBox { position: absolute; top: 8px; left: 8px; background: var(--panel); border: 1px solid var(--accent); border-radius: 6px; padding: 6px; display: flex; gap: 6px; z-index: 10; }
   #textEditBox input { background: var(--panel-2); border: 1px solid var(--border-strong); color: var(--text); border-radius: 4px; padding: 4px 6px; font-size: 12px; width: 100px; }
-  #ninePatchOverlay, #recolorOverlay, #aiOverlay, #batchAiOverlay, #filterOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; align-items: center; justify-content: center; padding: 20px; }
-  #ninePatchOverlay.open, #recolorOverlay.open, #aiOverlay.open, #batchAiOverlay.open, #filterOverlay.open { display: flex; }
+  #ninePatchOverlay, #recolorOverlay, #aiOverlay, #batchAiOverlay, #filterOverlay, #roundBatchOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; align-items: center; justify-content: center; padding: 20px; }
+  #ninePatchOverlay.open, #recolorOverlay.open, #aiOverlay.open, #batchAiOverlay.open, #filterOverlay.open, #roundBatchOverlay.open { display: flex; }
   .ai-reference-box { display: flex; align-items: center; gap: 10px; background: var(--panel-2); border: 1px solid var(--border-strong); border-radius: 8px; padding: 8px 10px; margin-bottom: 12px; font-size: 11px; color: var(--text-dim); }
   .ai-reference-box img { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; flex-shrink: 0; background: #000; }
   .ai-compare-box { display: flex; gap: 14px; justify-content: center; margin-bottom: 12px; }
@@ -458,6 +458,8 @@
     <div class="field"><label>Tông màu đích</label>
       <input type="color" id="recolorColor" value="#e8622f">
       <div class="swatches" id="recolorSwatches" style="margin-top:8px"></div>
+      <button type="button" class="btn small" id="recolorPickFromIconBtn" style="margin-top:8px">🎨 Lấy màu từ 1 icon đã tự vẽ/đổi (miễn phí, không dùng AI)</button>
+      <div class="hint" id="recolorPickHint" style="margin-top:4px">Vào tab Icon, bấm "☑ Chọn nhiều", chọn đúng 1 icon anh vừa tự làm ưng ý, rồi quay lại đây bấm nút trên.</div>
     </div>
     <div class="field"><label>Kiểu áp dụng</label>
       <select id="recolorMode">
@@ -498,6 +500,20 @@
     <div class="draw-actions">
       <button class="btn" id="filterCancelBtn">Huỷ</button>
       <button class="btn primary" id="filterApplyBtn">Áp dụng cho tất cả</button>
+    </div>
+  </div>
+</div>
+
+<div id="roundBatchOverlay">
+  <div class="draw-box">
+    <h3>Bo tròn hàng loạt</h3>
+    <div class="hint" style="margin-bottom:12px" id="roundBatchScope"></div>
+    <div class="field"><label>Độ bo góc: <span id="roundBatchValue">30</span>% (0 = vuông, 50 = tròn hoàn toàn)</label>
+      <input type="range" id="roundBatchRange" min="0" max="50" value="30" style="width:100%">
+    </div>
+    <div class="draw-actions">
+      <button class="btn" id="roundBatchCancelBtn">Huỷ</button>
+      <button class="btn primary" id="roundBatchApplyBtn">Áp dụng cho tất cả</button>
     </div>
   </div>
 </div>
@@ -1337,6 +1353,7 @@ function renderIconsTab() {
       <button class="btn small" id="openRecolorBtn">Đổi màu hàng loạt</button>
       <button class="btn small" id="openBatchAiBtn">AI thiết kế lại hàng loạt</button>
       <button class="btn small" id="openFilterBtn">Bộ lọc phong cách</button>
+      <button class="btn small" id="openRoundBatchBtn">Bo tròn hàng loạt</button>
       <button class="btn small" id="toggleSelectModeBtn">☑ Chọn nhiều</button>
     </div>
     <div id="selectModeBar" style="display:none"></div>
@@ -1427,6 +1444,7 @@ function renderIconsTab() {
     renderIconGrid(document.getElementById("iconSearch").value.trim().toLowerCase());
   });
   document.getElementById("openFilterBtn").addEventListener("click", openFilterPanel);
+  document.getElementById("openRoundBatchBtn").addEventListener("click", openRoundBatchPanel);
   renderIconGrid("");
 }
 
@@ -2330,6 +2348,30 @@ function openRecolorPanel() {
   });
   document.getElementById("recolorOverlay").classList.add("open");
 }
+document.getElementById("recolorPickFromIconBtn").addEventListener("click", async () => {
+  if (!(selectMode && selectedIcons.size === 1)) {
+    toast("Chưa chọn đúng 1 icon — vào tab Icon, bấm \"☑ Chọn nhiều\", tích đúng 1 icon anh vừa tự làm, rồi quay lại đây.", "err");
+    return;
+  }
+  const name = Array.from(selectedIcons)[0];
+  const pkg = nestedPackages[currentPkgPath];
+  const repl = iconReplacements[currentPkgPath] || {};
+  try {
+    const dataUrl = repl[name] ? await blobToDataURL(repl[name]) : await safeDataUrlFromZipEntry(pkg.zip, name);
+    const color = await getDominantColorFromDataUrl(dataUrl);
+    if (!color) { toast("Không lấy được màu từ icon này, thử icon khác.", "err"); return; }
+    document.getElementById("recolorColor").value = color;
+    // Bo chon icon mau, tra ve pham vi "toan bo goi" de ap dung cho CAC ICON CON LAI
+    selectedIcons.clear();
+    selectMode = false;
+    renderIconGrid(document.getElementById("iconSearch") ? document.getElementById("iconSearch").value.trim().toLowerCase() : "");
+    openRecolorPanel();
+    document.getElementById("recolorColor").value = color;
+    toast(`Đã lấy màu ${color} từ icon "${name}" — bấm "Áp dụng cho tất cả" để tô cho các icon còn lại`, "ok");
+  } catch (e) {
+    toast("Không lấy được ảnh icon này, thử icon khác.", "err");
+  }
+});
 document.getElementById("recolorCancelBtn").addEventListener("click", () => {
   document.getElementById("recolorOverlay").classList.remove("open");
 });
@@ -4145,6 +4187,48 @@ function renderToolPresetList(category, listElId, getCurrentValue, applyValue) {
   }));
 }
 
+function openRoundBatchPanel() {
+  const pkg = nestedPackages[currentPkgPath];
+  const deleted = pkgDeleted[currentPkgPath] || new Set();
+  const usingSelection = selectMode && selectedIcons.size > 0;
+  const activeNames = (usingSelection ? Array.from(selectedIcons) : pkg.names.filter(n => !deleted.has(n)))
+    .filter(n => n.toLowerCase().endsWith(".png") && !n.toLowerCase().endsWith(".9.png"));
+  document.getElementById("roundBatchScope").textContent = (usingSelection
+    ? `Sẽ bo góc cho ${activeNames.length} icon anh đã TÍCH CHỌN`
+    : `Sẽ bo góc cho ${activeNames.length} icon trong "${pkg.label}" đang mở`) + ` (tự bỏ qua ảnh dạng .9.png để tránh vỡ hình).`;
+  document.getElementById("roundBatchOverlay").classList.add("open");
+}
+document.getElementById("roundBatchCancelBtn").addEventListener("click", () => {
+  document.getElementById("roundBatchOverlay").classList.remove("open");
+});
+document.getElementById("roundBatchRange").addEventListener("input", (e) => {
+  document.getElementById("roundBatchValue").textContent = e.target.value;
+});
+document.getElementById("roundBatchApplyBtn").addEventListener("click", async () => {
+  pushUndoSnapshot();
+  const btn = document.getElementById("roundBatchApplyBtn");
+  btn.disabled = true; btn.textContent = "Đang xử lý...";
+  const radiusPercent = Number(document.getElementById("roundBatchRange").value);
+  const pkg = nestedPackages[currentPkgPath];
+  const deleted = pkgDeleted[currentPkgPath] || new Set();
+  const usingSelection = selectMode && selectedIcons.size > 0;
+  const activeNames = (usingSelection ? Array.from(selectedIcons) : pkg.names.filter(n => !deleted.has(n)))
+    .filter(n => n.toLowerCase().endsWith(".png") && !n.toLowerCase().endsWith(".9.png"));
+  const repl = iconReplacements[currentPkgPath] || (iconReplacements[currentPkgPath] = {});
+  let done = 0;
+  for (const name of activeNames) {
+    try {
+      const src = repl[name] || await pkg.zip.files[name].async("blob");
+      const rounded = await applyRoundedMask(src, radiusPercent, 192);
+      repl[name] = rounded;
+      done++;
+    } catch (e) { /* bo qua icon loi, khong dung ca loat */ }
+  }
+  btn.disabled = false; btn.textContent = "Áp dụng cho tất cả";
+  document.getElementById("roundBatchOverlay").classList.remove("open");
+  renderIconGrid(document.getElementById("iconSearch") ? document.getElementById("iconSearch").value.trim().toLowerCase() : "");
+  toast(`Đã bo góc ${done} icon — nhớ bấm Xuất file theme`, "ok");
+});
 function openFilterPanel() {
   const pkg = nestedPackages[currentPkgPath];
   const deleted = pkgDeleted[currentPkgPath] || new Set();
