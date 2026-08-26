@@ -1795,8 +1795,9 @@ async function handleDonorFile(e) {
       <div class="wallpaper-info">
         <div class="name">${escapeHtml(donorNestedPackages[p].label)}</div>
         <div class="path">${p} — ${countLabel}</div>
+        ${already ? `<div class="hint" style="margin-top:2px">Theme đang mở đã có sẵn 1 bộ — ghép sẽ THAY THẾ toàn bộ bằng bộ của file này.</div>` : ""}
       </div>
-      <button class="btn small" data-donor-path="${escapeAttr(p)}" ${already ? "disabled" : ""}>${already ? "Đã có trong theme này" : "Ghép vào theme này"}</button>
+      <button class="btn small" data-donor-path="${escapeAttr(p)}">${already ? "Thay thế bằng gói này" : "Ghép vào theme này"}</button>
     </div>`;
   }).join("");
   itemsHtml += donorWpNames.map(name => {
@@ -1876,8 +1877,15 @@ async function handleDonorFile(e) {
   listEl.querySelectorAll("button[data-donor-path]").forEach(btn => {
     btn.addEventListener("click", () => {
       const p = btn.dataset.donorPath;
+      const wasAlready = !!nestedPackages[p];
+      if (wasAlready) {
+        pushUndoSnapshot();
+        // Da co san 1 bo cung ten - xoa het chinh sua cu tren bo nay de tranh lan ten icon giua 2 bo khac nhau
+        delete iconReplacementsLight[p]; delete iconReplacementsDark[p];
+        delete pkgDeleted[p];
+      }
       nestedPackages[p] = donorNestedPackages[p];
-      toast(`Đã ghép "${donorNestedPackages[p].label}" vào theme — nhớ bấm Xuất file theme`, "ok");
+      toast(`Đã ${wasAlready ? "thay thế bằng" : "ghép"} "${donorNestedPackages[p].label}" — nhớ bấm Xuất file theme`, "ok");
       renderIconsTab();
     });
   });
@@ -2144,6 +2152,11 @@ async function rasterToSquareSvgFile(file, size) {
   const canvas = document.createElement("canvas");
   canvas.width = size; canvas.height = size;
   const ctx = canvas.getContext("2d");
+  // Cat tron truoc khi ve, vi icon van tay tren may Honor la hinh tron, khong phai vuong
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.clip();
   const side = Math.min(img.width, img.height);
   const sx = (img.width - side) / 2, sy = (img.height - side) / 2;
   ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
