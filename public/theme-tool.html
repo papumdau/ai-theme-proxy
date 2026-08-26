@@ -252,8 +252,8 @@
   .tool-row .btn.active-tool { background: var(--accent-dim); border-color: var(--accent-dim); color: #fff; }
   #textEditBox { position: absolute; top: 8px; left: 8px; background: var(--panel); border: 1px solid var(--accent); border-radius: 6px; padding: 6px; display: flex; gap: 6px; z-index: 10; }
   #textEditBox input { background: var(--panel-2); border: 1px solid var(--border-strong); color: var(--text); border-radius: 4px; padding: 4px 6px; font-size: 12px; width: 100px; }
-  #ninePatchOverlay, #recolorOverlay, #aiOverlay, #batchAiOverlay, #filterOverlay, #roundBatchOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; align-items: center; justify-content: center; padding: 20px; }
-  #ninePatchOverlay.open, #recolorOverlay.open, #aiOverlay.open, #batchAiOverlay.open, #filterOverlay.open, #roundBatchOverlay.open { display: flex; }
+  #ninePatchOverlay, #recolorOverlay, #aiOverlay, #batchAiOverlay, #filterOverlay, #roundBatchOverlay, #wpFilterOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; align-items: center; justify-content: center; padding: 20px; }
+  #ninePatchOverlay.open, #recolorOverlay.open, #aiOverlay.open, #batchAiOverlay.open, #filterOverlay.open, #roundBatchOverlay.open, #wpFilterOverlay.open { display: flex; }
   .ai-reference-box { display: flex; align-items: center; gap: 10px; background: var(--panel-2); border: 1px solid var(--border-strong); border-radius: 8px; padding: 8px 10px; margin-bottom: 12px; font-size: 11px; color: var(--text-dim); }
   .ai-reference-box img { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; flex-shrink: 0; background: #000; }
   .ai-compare-box { display: flex; gap: 14px; justify-content: center; margin-bottom: 12px; }
@@ -521,6 +521,34 @@
     <div class="draw-actions">
       <button class="btn" id="roundBatchCancelBtn">Huỷ</button>
       <button class="btn primary" id="roundBatchApplyBtn">Áp dụng cho tất cả</button>
+    </div>
+  </div>
+</div>
+
+<div id="wpFilterOverlay">
+  <div class="draw-box">
+    <h3>Đổi màu/lọc hàng loạt cho hình nền</h3>
+    <div class="hint" style="margin-bottom:12px">Chọn những hình nền muốn áp dụng cùng 1 kiểu lọc:</div>
+    <div id="wpFilterCheckList" style="margin-bottom:12px"></div>
+    <div class="field"><label>Chọn kiểu lọc</label>
+      <select id="wpFilterKindSelect">
+        <option value="duotone">2 tông màu (duotone) — bóng tối 1 màu, sáng 1 màu</option>
+        <option value="grayscale-tint">Đen trắng rồi phủ 1 tông màu</option>
+        <option value="invert">Đảo ngược màu</option>
+        <option value="sepia">Vintage nâu cổ điển (sepia)</option>
+        <option value="posterize">Giảm số lượng màu (poster hoá)</option>
+        <option value="bg-swap-keep-color">Đổi nền sáng↔tối, giữ nguyên chi tiết có màu</option>
+      </select>
+    </div>
+    <div id="wpFilterColorFields">
+      <div class="grid2">
+        <div class="field"><label>Màu 1 (tối/bóng)</label><input type="color" id="wpFilterColor1" value="#1a1a2e"></div>
+        <div class="field"><label>Màu 2 (sáng/highlight)</label><input type="color" id="wpFilterColor2" value="#e8622f"></div>
+      </div>
+    </div>
+    <div class="draw-actions">
+      <button class="btn" id="wpFilterCancelBtn">Huỷ</button>
+      <button class="btn primary" id="wpFilterApplyBtn">Áp dụng</button>
     </div>
   </div>
 </div>
@@ -1119,6 +1147,7 @@ async function renderWallpaperTab(model) {
     </div>` : "") +
     '<div class="card"><h3>Hình nền &amp; video màn khoá</h3><div class="card-hint">Thay đúng file, đúng tên — máy vẫn nhận ra như cũ.</div><div id="wpList"></div>' +
     (model === "phone" ? '<button class="btn small" id="addWpPageBtn" style="margin-top:10px">+ Thêm trang hình nền khác</button>' : '') +
+    '<button class="btn small" id="openWpFilterBtn" style="margin-top:10px;margin-left:8px">🎨 Đổi màu/lọc hàng loạt cho hình nền</button>' +
     '</div>';
   if (carouselMetaJson) {
     const listEl = document.getElementById("carouselSimpleList");
@@ -4500,6 +4529,85 @@ document.getElementById("roundBatchApplyBtn").addEventListener("click", async ()
   document.getElementById("roundBatchOverlay").classList.remove("open");
   renderIconGrid(document.getElementById("iconSearch") ? document.getElementById("iconSearch").value.trim().toLowerCase() : "");
   toast(`Đã bo góc ${done} icon — nhớ bấm Xuất file theme`, "ok");
+});
+function getWpFilterTargets() {
+  const targets = [];
+  for (const base of Object.keys(WALLPAPER_LABELS)) {
+    if (base.toLowerCase().endsWith(".mp4")) continue; // video khong loc mau duoc
+    if (wallpaperEntries[base] || wallpaperReplacements[base]) {
+      targets.push({ id: "wp-" + base, label: WALLPAPER_LABELS[base], type: "wallpaper", base });
+    }
+  }
+  if (carouselMetaJson) {
+    const periods = ["day", "dusk", "night"];
+    for (const item of CAROUSEL_SIMPLE_ITEMS) {
+      if (item.hasLightDark) {
+        const lightPaths = periods.map(p => carouselFiles[p] && carouselFiles[p][item.keyLight]).filter(Boolean);
+        const darkPaths = periods.map(p => carouselFiles[p] && carouselFiles[p][item.keyDark]).filter(Boolean);
+        if (lightPaths.length) targets.push({ id: "car-" + item.id + "-light", label: item.label + " — bản Sáng (áp cho cả 3 mốc giờ bên trong)", type: "carousel", paths: lightPaths });
+        if (darkPaths.length) targets.push({ id: "car-" + item.id + "-dark", label: item.label + " — bản Tối (áp cho cả 3 mốc giờ bên trong)", type: "carousel", paths: darkPaths });
+      } else {
+        const sharedPaths = periods.map(p => carouselFiles[p] && carouselFiles[p][item.keyShared]).filter(Boolean);
+        if (sharedPaths.length) targets.push({ id: "car-" + item.id, label: item.label + " (áp cho cả 3 mốc giờ bên trong)", type: "carousel", paths: sharedPaths });
+      }
+    }
+  }
+  return targets;
+}
+function openWpFilterPanel() {
+  const targets = getWpFilterTargets();
+  const listEl = document.getElementById("wpFilterCheckList");
+  if (targets.length === 0) {
+    listEl.innerHTML = '<div class="hint">Theme này chưa có hình nền nào để lọc.</div>';
+  } else {
+    listEl.innerHTML = targets.map(t => `
+      <label style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;font-weight:400">
+        <input type="checkbox" class="wp-filter-check" value="${t.id}" checked> ${escapeHtml(t.label)}
+      </label>`).join("");
+  }
+  document.getElementById("wpFilterOverlay").classList.add("open");
+}
+document.getElementById("openWpFilterBtn").addEventListener("click", openWpFilterPanel);
+document.getElementById("wpFilterCancelBtn").addEventListener("click", () => {
+  document.getElementById("wpFilterOverlay").classList.remove("open");
+});
+document.getElementById("wpFilterKindSelect").addEventListener("change", (e) => {
+  document.getElementById("wpFilterColorFields").style.display = (e.target.value === "duotone" || e.target.value === "grayscale-tint") ? "block" : "none";
+});
+document.getElementById("wpFilterApplyBtn").addEventListener("click", async () => {
+  pushUndoSnapshot();
+  const btn = document.getElementById("wpFilterApplyBtn");
+  btn.disabled = true; btn.textContent = "Đang xử lý...";
+  const kind = document.getElementById("wpFilterKindSelect").value;
+  const color1 = document.getElementById("wpFilterColor1").value;
+  const color2 = document.getElementById("wpFilterColor2").value;
+  const targets = getWpFilterTargets();
+  const checkedIds = Array.from(document.querySelectorAll(".wp-filter-check:checked")).map(c => c.value);
+  let done = 0;
+  for (const t of targets) {
+    if (!checkedIds.includes(t.id)) continue;
+    try {
+      let srcBlob;
+      if (t.type === "wallpaper") {
+        srcBlob = wallpaperReplacements[t.base] || await mainZip.files[wallpaperEntries[t.base]].async("blob");
+      } else {
+        const firstPath = t.paths[0];
+        srcBlob = carouselReplacements[firstPath] || await mainZip.files[firstPath].async("blob");
+      }
+      const dataUrl = await blobToDataURL(srcBlob);
+      const outBlob = await applyFilterToImage(dataUrl, kind, color1, color2);
+      if (t.type === "wallpaper") {
+        wallpaperReplacements[t.base] = outBlob;
+      } else {
+        for (const p of t.paths) carouselReplacements[p] = outBlob;
+      }
+      done++;
+    } catch (e) { /* bo qua anh loi, khong dung ca loat */ }
+  }
+  btn.disabled = false; btn.textContent = "Áp dụng";
+  document.getElementById("wpFilterOverlay").classList.remove("open");
+  renderWallpaperTab();
+  toast(`Đã lọc màu ${done} hình nền — nhớ bấm Xuất file theme`, "ok");
 });
 function openFilterPanel() {
   const pkg = nestedPackages[currentPkgPath];
