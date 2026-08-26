@@ -572,6 +572,8 @@ const STARTER_UNIVERSAL_B64 = "UEsDBBQAAAAIAOwRGV3x8ExrC7oAAFTgAAAUAAAAY29tLmFuZ
 let mainZip = null;
 let originalFileName = "theme.hwt";
 let descXmlPath = null;
+let carouselMetaPath = null;
+let carouselMetaJson = null; // wallpaper_meta.json da parse - null neu theme khong co (theme thuong)
 let descXmlRaw = "";
 let descFields = {};
 let wallpaperEntries = {};
@@ -694,6 +696,8 @@ async function handleFile(file) {
   }
 
   descXmlPath = null;
+  carouselMetaPath = null;
+  carouselMetaJson = null;
   wallpaperEntries = {};
   wallpaperReplacements = {};
   wallpaperVariantReplacements = { foldable: {}, tablet: {} };
@@ -716,6 +720,7 @@ async function handleFile(file) {
   for (const p of paths) {
     const base = p.split("/").pop();
     if (base === "description.xml") descXmlPath = p;
+    if (base === "wallpaper_meta.json") { carouselMetaPath = p; }
     if (["home_wallpaper_0.jpg","unlock_live_wallpaper.jpg","fullAod_live_wallpaper.jpg","video_live_wallpaper.mp4"].includes(base)) {
       wallpaperEntries[base] = p;
       let variant = "phone";
@@ -853,6 +858,13 @@ async function handleFile(file) {
         chargingFields.push({ tag: lm[1], content: lm[2], color: lm[3] });
       }
     } catch (e) { /* bo qua */ }
+  }
+
+  if (carouselMetaPath) {
+    try {
+      const text = await mainZip.files[carouselMetaPath].async("text");
+      carouselMetaJson = JSON.parse(text);
+    } catch (e) { carouselMetaJson = null; /* file loi/khong doc duoc thi coi nhu khong co, khong lam gi them */ }
   }
 
   document.getElementById("currentFileName").textContent = originalFileName;
@@ -1037,7 +1049,11 @@ async function renderWallpaperTab(model) {
   model = model || "phone";
   const el = document.getElementById("panel-wallpaper");
   const hasVariants = Object.keys(wallpaperVariants.foldable || {}).length || Object.keys(wallpaperVariants.tablet || {}).length;
-  el.innerHTML = (hasVariants ? `<div class="field" style="max-width:260px;margin-bottom:14px">
+  el.innerHTML = (carouselMetaJson ? `<div class="card" style="border-left:3px solid var(--accent)">
+      <h3>🌗 Theme này có hình nền đổi theo giờ trong ngày</h3>
+      <div class="card-hint">Phát hiện theme có bộ ảnh riêng cho Ngày / Hoàng hôn / Đêm (máy tự đổi theo giờ thật). <b>Tool hiện chưa chỉnh sửa được phần này</b> — mới chỉ nhận diện để không làm hỏng khi xuất file. Phần hình nền thường bên dưới vẫn sửa được bình thường, không ảnh hưởng tới bộ 3 khung giờ.</div>
+    </div>` : "") +
+    (hasVariants ? `<div class="field" style="max-width:260px;margin-bottom:14px">
       <label>Đang sửa hình nền cho</label>
       <select id="wpModelSelect">
         <option value="phone" ${model === "phone" ? "selected" : ""}>Điện thoại thường</option>
