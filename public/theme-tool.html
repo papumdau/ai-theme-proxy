@@ -574,6 +574,11 @@ let originalFileName = "theme.hwt";
 let descXmlPath = null;
 let carouselMetaPath = null;
 let carouselMetaJson = null; // wallpaper_meta.json da parse - null neu theme khong co (theme thuong)
+let carouselFiles = {}; // { day: {home_dark: "duong/dan/that.jpg", ...}, dusk: {...}, night: {...} }
+let carouselReplacements = {}; // duong dan day du -> blob anh moi
+let onetakeConfigPath = null;
+let onetakeFiles = {}; // { day: "duong/dan/that.jpg", night: ..., dusk: ... }
+let onetakeReplacements = {};
 let descXmlRaw = "";
 let descFields = {};
 let wallpaperEntries = {};
@@ -698,6 +703,11 @@ async function handleFile(file) {
   descXmlPath = null;
   carouselMetaPath = null;
   carouselMetaJson = null;
+  carouselFiles = {};
+  carouselReplacements = {};
+  onetakeConfigPath = null;
+  onetakeFiles = {};
+  onetakeReplacements = {};
   wallpaperEntries = {};
   wallpaperReplacements = {};
   wallpaperVariantReplacements = { foldable: {}, tablet: {} };
@@ -721,6 +731,7 @@ async function handleFile(file) {
     const base = p.split("/").pop();
     if (base === "description.xml") descXmlPath = p;
     if (base === "wallpaper_meta.json") { carouselMetaPath = p; }
+    if (base === "onetake_local_aod_lockscreen_config.xml") { onetakeConfigPath = p; }
     if (["home_wallpaper_0.jpg","unlock_live_wallpaper.jpg","fullAod_live_wallpaper.jpg","video_live_wallpaper.mp4"].includes(base)) {
       wallpaperEntries[base] = p;
       let variant = "phone";
@@ -864,7 +875,36 @@ async function handleFile(file) {
     try {
       const text = await mainZip.files[carouselMetaPath].async("text");
       carouselMetaJson = JSON.parse(text);
+      // Doc het moi duong dan file trong extra_files, tach ra theo moc Ngay/Hoang hon/Dem
+      const allPaths = new Set();
+      const collect = (obj) => {
+        if (!obj) return;
+        if (Array.isArray(obj)) { obj.forEach(collect); return; }
+        if (typeof obj === "object") { Object.values(obj).forEach(collect); return; }
+        if (typeof obj === "string") allPaths.add(obj);
+      };
+      collect(carouselMetaJson);
+      carouselFiles = { day: {}, dusk: {}, night: {} };
+      for (const p of allPaths) {
+        const m = p.match(/carouselWallpapers\/(day|dusk|night)\/([^/]+)\.(jpg|jpeg|png)$/i);
+        if (m) carouselFiles[m[1]][m[2]] = p;
+      }
     } catch (e) { carouselMetaJson = null; /* file loi/khong doc duoc thi coi nhu khong co, khong lam gi them */ }
+  }
+
+  if (onetakeConfigPath) {
+    try {
+      const text = await mainZip.files[onetakeConfigPath].async("text");
+      const dir = onetakeConfigPath.substring(0, onetakeConfigPath.lastIndexOf("/") + 1);
+      const loopRe = /<item\s+key="(day|night|dusk)"\s+value="(\d+)"\s*\/>/g;
+      const allNamesInDir = Object.keys(mainZip.files).filter(n => n.startsWith(dir) && !mainZip.files[n].dir);
+      let lm;
+      while ((lm = loopRe.exec(text))) {
+        const period = lm[1], idx = lm[2];
+        const found = allNamesInDir.find(n => n.includes("local_aod_bg_res_" + idx + "."));
+        if (found) onetakeFiles[period] = found;
+      }
+    } catch (e) { onetakeFiles = {}; /* bo qua, khong lam gi them */ }
   }
 
   document.getElementById("currentFileName").textContent = originalFileName;
@@ -1042,6 +1082,15 @@ const WALLPAPER_LABELS = {
   "fullAod_live_wallpaper.jpg": "Hình cho Always On Display",
   "video_live_wallpaper.mp4": "Video hình nền động (màn khoá)",
 };
+const CAROUSEL_PERIOD_LABELS = { day: "☀️ Ngày", dusk: "🌇 Hoàng hôn", night: "🌙 Đêm" };
+const CAROUSEL_FILE_LABELS = {
+  home_dark: "Màn hình chính (bản tối)",
+  home_light: "Màn hình chính (bản sáng)",
+  lock_dark: "Màn hình khoá (bản tối)",
+  lock_light: "Màn hình khoá (bản sáng)",
+  fullAod_live_wallpaper: "Màn hình luôn bật (AOD)",
+  unlock_depth_effect_wallpaper_0: "Hiệu ứng chiều sâu lúc mở khoá",
+};
 
 let extraWallpaperPages = 0;
 
@@ -1050,8 +1099,14 @@ async function renderWallpaperTab(model) {
   const el = document.getElementById("panel-wallpaper");
   const hasVariants = Object.keys(wallpaperVariants.foldable || {}).length || Object.keys(wallpaperVariants.tablet || {}).length;
   el.innerHTML = (carouselMetaJson ? `<div class="card" style="border-left:3px solid var(--accent)">
-      <h3>🌗 Theme này có hình nền đổi theo giờ trong ngày</h3>
-      <div class="card-hint">Phát hiện theme có bộ ảnh riêng cho Ngày / Hoàng hôn / Đêm (máy tự đổi theo giờ thật). <b>Tool hiện chưa chỉnh sửa được phần này</b> — mới chỉ nhận diện để không làm hỏng khi xuất file. Phần hình nền thường bên dưới vẫn sửa được bình thường, không ảnh hưởng tới bộ 3 khung giờ.</div>
+      <h3>🌗 Hình nền đổi theo giờ trong ngày</h3>
+      <div class="card-hint">Theme này có bộ ảnh riêng cho Ngày / Hoàng hôn / Đêm (máy tự đổi theo giờ thật) — nằm riêng, không ảnh hưởng tới hình nền thường bên dưới.</div>
+      ${["day", "dusk", "night"].map(period => `
+        <div style="margin-top:14px">
+          <div style="font-weight:600;margin-bottom:6px">${CAROUSEL_PERIOD_LABELS[period]}</div>
+          <div id="carouselList-${period}"></div>
+        </div>
+      `).join("")}
     </div>` : "") +
     (hasVariants ? `<div class="field" style="max-width:260px;margin-bottom:14px">
       <label>Đang sửa hình nền cho</label>
@@ -1064,6 +1119,58 @@ async function renderWallpaperTab(model) {
     '<div class="card"><h3>Hình nền &amp; video màn khoá</h3><div class="card-hint">Thay đúng file, đúng tên — máy vẫn nhận ra như cũ.</div><div id="wpList"></div>' +
     (model === "phone" ? '<button class="btn small" id="addWpPageBtn" style="margin-top:10px">+ Thêm trang hình nền khác</button>' : '') +
     '</div>';
+  if (carouselMetaJson) {
+    for (const period of ["day", "dusk", "night"]) {
+      const listEl = document.getElementById("carouselList-" + period);
+      if (!listEl) continue;
+      const entries = Object.keys(CAROUSEL_FILE_LABELS).filter(k => carouselFiles[period] && carouselFiles[period][k]);
+      if (entries.length === 0) { listEl.innerHTML = '<div class="hint">Không có file nào cho mốc này.</div>'; continue; }
+      listEl.innerHTML = entries.map(key => {
+        const fullPath = carouselFiles[period][key];
+        const thumbId = "carouselThumb-" + period + "-" + key.replace(/\W/g, "");
+        return `<div class="wallpaper-item">
+          <div class="wallpaper-thumb" id="${thumbId}"></div>
+          <div class="wallpaper-info">
+            <div class="name">${escapeHtml(CAROUSEL_FILE_LABELS[key])}</div>
+            <div class="path">${escapeHtml(fullPath)}</div>
+            <div class="status ${carouselReplacements[fullPath] ? "changed" : ""}" id="status-${thumbId}">${carouselReplacements[fullPath] ? "Đã chọn file mới — nhớ bấm Xuất file theme" : "Có trong theme"}</div>
+          </div>
+          <div>
+            <button class="btn small" data-carousel-path="${escapeAttr(fullPath)}" data-thumb="${thumbId}">Thay bằng file khác</button>
+            <input type="file" id="input-${thumbId}" accept="image/*" style="display:none">
+          </div>
+        </div>`;
+      }).join("");
+      for (const key of entries) {
+        const fullPath = carouselFiles[period][key];
+        const thumbId = "carouselThumb-" + period + "-" + key.replace(/\W/g, "");
+        (async () => {
+          try {
+            const blob = carouselReplacements[fullPath] || await mainZip.files[fullPath].async("blob");
+            const thumbEl = document.getElementById(thumbId);
+            if (thumbEl) thumbEl.innerHTML = `<img src="${await blobToDataURL(blob)}">`;
+          } catch (e) { /* bo qua */ }
+        })();
+      }
+      listEl.querySelectorAll("button[data-carousel-path]").forEach(btn => {
+        btn.addEventListener("click", () => document.getElementById("input-" + btn.dataset.thumb).click());
+      });
+      listEl.querySelectorAll("input[type=file]").forEach(inp => {
+        inp.addEventListener("change", async (e) => {
+          if (!e.target.files.length) return;
+          const btn = listEl.querySelector(`button[data-thumb="${inp.id.replace("input-", "")}"]`);
+          const fullPath = btn.dataset.carouselPath;
+          const f = e.target.files[0];
+          carouselReplacements[fullPath] = f;
+          document.getElementById(inp.id.replace("input-", "")).innerHTML = `<img src="${await blobToDataURL(f)}">`;
+          const st = document.getElementById("status-" + inp.id.replace("input-", ""));
+          st.textContent = "Đã chọn file mới — nhớ bấm Xuất file theme";
+          st.className = "status changed";
+          toast("Đã đổi ảnh — nhớ bấm Xuất file theme", "ok");
+        });
+      });
+    }
+  }
   if (hasVariants) {
     document.getElementById("wpModelSelect").addEventListener("change", (e) => renderWallpaperTab(e.target.value));
   }
@@ -3431,7 +3538,62 @@ function renderSystemTab() {
     html += `<div class="card"><h3>Màn hình luôn bật (AOD)</h3><div class="empty-state">Theme này không có gói cấu hình <b>đồng hồ AOD</b> (màu chữ, kiểu số hiển thị khi màn hình luôn bật).<br><br>Lưu ý: đây khác với <b>"Hình cho Always On Display"</b> ở tab Hình nền — đó chỉ là 1 tấm ảnh nền tĩnh dùng khi AOD bật, theme nào cũng có thể có ảnh đó dù không có gói đồng hồ AOD riêng như ở đây.</div></div>`;
   }
 
+  if (Object.keys(onetakeFiles).length) {
+    html += `<div class="card" style="border-left:3px solid var(--accent)">
+      <h3>🌗 AOD chuyển tiếp mượt ("onetake")</h3>
+      <div class="card-hint">Theme này có hiệu ứng AOD trôi mượt sang màn hình chính, đổi ảnh nền theo Ngày/Hoàng hôn/Đêm. Khác với ảnh AOD thường ở tab Hình nền.</div>
+      ${Object.keys(onetakeFiles).map(period => {
+        const fullPath = onetakeFiles[period];
+        const thumbId = "onetakeThumb-" + period;
+        return `<div class="wallpaper-item">
+          <div class="wallpaper-thumb" id="${thumbId}"></div>
+          <div class="wallpaper-info">
+            <div class="name">${CAROUSEL_PERIOD_LABELS[period] || period}</div>
+            <div class="path">${escapeHtml(fullPath)}</div>
+            <div class="status ${onetakeReplacements[fullPath] ? "changed" : ""}" id="status-${thumbId}">${onetakeReplacements[fullPath] ? "Đã chọn file mới — nhớ bấm Xuất file theme" : "Có trong theme"}</div>
+          </div>
+          <div>
+            <button class="btn small" data-onetake-path="${escapeAttr(fullPath)}" data-thumb="${thumbId}">Thay bằng file khác</button>
+            <input type="file" id="input-${thumbId}" accept="image/*" style="display:none">
+          </div>
+        </div>`;
+      }).join("")}
+    </div>`;
+  }
+
   el.innerHTML = html;
+
+  if (Object.keys(onetakeFiles).length) {
+    for (const period of Object.keys(onetakeFiles)) {
+      const fullPath = onetakeFiles[period];
+      const thumbId = "onetakeThumb-" + period;
+      (async () => {
+        try {
+          const blob = onetakeReplacements[fullPath] || await mainZip.files[fullPath].async("blob");
+          const thumbEl = document.getElementById(thumbId);
+          if (thumbEl) thumbEl.innerHTML = `<img src="${await blobToDataURL(blob)}">`;
+        } catch (e) { /* bo qua */ }
+      })();
+    }
+    document.querySelectorAll("button[data-onetake-path]").forEach(btn => {
+      btn.addEventListener("click", () => document.getElementById("input-" + btn.dataset.thumb).click());
+    });
+    document.querySelectorAll("input[id^='input-onetakeThumb-']").forEach(inp => {
+      inp.addEventListener("change", async (e) => {
+        if (!e.target.files.length) return;
+        const thumbId = inp.id.replace("input-", "");
+        const btn = document.querySelector(`button[data-thumb="${thumbId}"]`);
+        const fullPath = btn.dataset.onetakePath;
+        const f = e.target.files[0];
+        onetakeReplacements[fullPath] = f;
+        document.getElementById(thumbId).innerHTML = `<img src="${await blobToDataURL(f)}">`;
+        const st = document.getElementById("status-" + thumbId);
+        st.textContent = "Đã chọn file mới — nhớ bấm Xuất file theme";
+        st.className = "status changed";
+        toast("Đã đổi ảnh AOD onetake — nhớ bấm Xuất file theme", "ok");
+      });
+    });
+  }
 
   if (aodDigitBgPaths.length) {
     (async () => {
@@ -4571,6 +4733,14 @@ document.getElementById("exportBtn").addEventListener("click", async () => {
         break;
       }
       if (handledAsVirtual) continue;
+      if (carouselReplacements[p]) {
+        outZip.file(p, await carouselReplacements[p].arrayBuffer());
+        continue;
+      }
+      if (onetakeReplacements[p]) {
+        outZip.file(p, await onetakeReplacements[p].arrayBuffer());
+        continue;
+      }
       const base = p.split("/").pop();
       const belongsToVariant = ["foldable", "tablet"].find(v => (wallpaperVariants[v] || {})[base] === p);
       if (belongsToVariant) {
