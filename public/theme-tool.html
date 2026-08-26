@@ -2866,6 +2866,13 @@ async function openAiOverlay(type, a, b) {
         if (path) aiReferenceDataUrl = await blobToDataURL(await mainZip.files[path].async("blob"));
       }
     } catch (err) { aiReferenceDataUrl = null; }
+  } else if (type === "charging-icon") {
+    label.textContent = "Icon tia sét (sạc pin)";
+    costHint.textContent = "AI sẽ dựa vào icon tia sét hiện tại (xem bên dưới) để thiết kế lại theo mô tả — ảnh vuông 1024x1024.";
+    try {
+      const repl = chargingReplacements[chargingIconPath];
+      aiReferenceDataUrl = repl ? await blobToDataURL(repl) : await blobToDataURL(await mainZip.files[chargingIconPath].async("blob"));
+    } catch (err) { aiReferenceDataUrl = null; }
   } else {
     aiTargetWpName = a; aiTargetWpModel = "phone";
     label.textContent = "Hình nền: " + a;
@@ -2899,8 +2906,8 @@ async function runAiGenerate() {
   const retryBtn = document.getElementById("aiRetryBtn");
   if (btn) { btn.disabled = true; btn.textContent = "Đang tạo ảnh..."; }
   if (retryBtn) { retryBtn.disabled = true; retryBtn.textContent = "Đang tạo lại..."; }
-  const size = aiTargetType === "icon" ? "1024x1024" : "1024x1536";
-  const aspectRatio = aiTargetType === "icon" ? "1:1" : "9:16";
+  const size = (aiTargetType === "icon" || aiTargetType === "charging-icon") ? "1024x1024" : "1024x1536";
+  const aspectRatio = (aiTargetType === "icon" || aiTargetType === "charging-icon") ? "1:1" : "9:16";
   let blob = null;
   try {
     blob = await generateAiImage(promptText, size, aspectRatio, aiReferenceDataUrl);
@@ -2938,6 +2945,10 @@ document.getElementById("aiUseNewBtn").addEventListener("click", async () => {
     iconReplacements[aiTargetPkg][aiTargetIconName] = resized;
     toast(`Đã tạo icon "${aiTargetIconName}" bằng AI`, "ok");
     renderIconGrid(document.getElementById("iconSearch") ? document.getElementById("iconSearch").value.trim().toLowerCase() : "");
+  } else if (aiTargetType === "charging-icon") {
+    chargingReplacements[chargingIconPath] = blob;
+    document.getElementById("chargingIconThumb") && (document.getElementById("chargingIconThumb").innerHTML = `<img src="${await blobToDataURL(blob)}">`);
+    toast("Đã tạo icon tia sét bằng AI", "ok");
   } else {
     if (aiTargetWpModel === "phone") {
       wallpaperReplacements[aiTargetWpName] = blob;
@@ -3318,7 +3329,8 @@ function renderChargingTab() {
     <div class="wallpaper-item">
       <div class="wallpaper-thumb" id="chargingIconThumb"></div>
       <div class="wallpaper-info"><div class="name">Icon tia sét</div><div class="path">${chargingIconPath || "(không có)"}</div></div>
-      <div><button class="btn small" id="chargingIconBtn" ${chargingIconPath ? "" : "disabled"}>Thay ảnh</button><input type="file" id="chargingIconInput" accept="image/*" style="display:none"></div>
+      <div><button class="btn small" id="chargingIconBtn" ${chargingIconPath ? "" : "disabled"}>Thay ảnh</button><input type="file" id="chargingIconInput" accept="image/*" style="display:none">
+      ${chargingIconPath ? '<button class="btn small" id="chargingIconAiBtn" style="margin-left:6px">Tạo bằng AI</button>' : ""}</div>
     </div>
     <div class="wallpaper-item">
       <div class="wallpaper-thumb" id="chargingVideoThumb"></div>
@@ -3343,6 +3355,8 @@ function renderChargingTab() {
       document.getElementById("chargingIconThumb").innerHTML = `<img src="${url}">`;
     });
     document.getElementById("chargingIconBtn").addEventListener("click", () => document.getElementById("chargingIconInput").click());
+    const chargingIconAiBtn = document.getElementById("chargingIconAiBtn");
+    if (chargingIconAiBtn) chargingIconAiBtn.addEventListener("click", () => openAiOverlay("charging-icon", null, null));
     document.getElementById("chargingIconInput").addEventListener("change", async (e) => {
       if (!e.target.files.length) return;
       chargingReplacements[chargingIconPath] = e.target.files[0];
