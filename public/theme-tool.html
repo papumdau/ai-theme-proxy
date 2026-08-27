@@ -916,6 +916,41 @@ async function checkAndOfferAutosaveRestore() {
   });
 }
 
+async function detectSystemuiColorInPackage(p, pkg) {
+  const colorFiles = pkg.allNames.filter(n => /(^|\/)theme\.xml$/i.test(n));
+  const foundFiles = [];
+  for (const cf of colorFiles) {
+    try {
+      const text = await pkg.zip.files[cf].async("text");
+      if (/qs_tile_tint_on/.test(text)) foundFiles.push({ path: cf, text });
+    } catch (e) { /* bo qua */ }
+  }
+  if (foundFiles.length) {
+    systemuiPkgPath = p;
+    systemuiColorFiles = foundFiles;
+    const m = foundFiles[0].text.match(/qs_tile_tint_on[^#]*(#[0-9A-Fa-f]{6,8})/);
+    systemuiTintColor = m ? m[1] : "";
+    controlTileBgPath = pkg.allNames.find(n => /qs_tile_bg/i.test(n)) || null;
+    controlMaskPath = pkg.allNames.find(n => /mask_control_center/i.test(n) && !/main_color/i.test(n)) || null;
+    return true;
+  }
+  return false;
+}
+async function detectAodConfigInPackage(p, pkg) {
+  const themeFile = pkg.allNames.find(n => n === "theme.xml" || n.endsWith("/theme.xml"));
+  if (!themeFile) return false;
+  try {
+    aodPkgPath = p; aodThemeXmlPath = themeFile;
+    aodThemeXmlRaw = await pkg.zip.files[themeFile].async("text");
+    const tags = ["style", "clock", "background", "fontcolor", "timecolor"];
+    for (const t of tags) {
+      const m = aodThemeXmlRaw.match(new RegExp(t + '="([^"]*)"'));
+      aodFields[t] = m ? m[1] : "";
+    }
+    aodDigitBgPaths = pkg.allNames.filter(n => /digit_bg\.(png|jpg|jpeg)$/i.test(n));
+    return true;
+  } catch (e) { return false; }
+}
 async function handleFile(file) {
   originalFileName = file.name;
   originalFileBlobForSave = file;
@@ -1018,37 +1053,10 @@ async function handleFile(file) {
   for (const p of Object.keys(nestedPackages)) {
     const pkg = nestedPackages[p];
     if (pkg.label === "Trung tâm điều khiển" && !systemuiPkgPath) {
-      const colorFiles = pkg.allNames.filter(n => /(^|\/)theme\.xml$/i.test(n));
-      const foundFiles = [];
-      for (const cf of colorFiles) {
-        try {
-          const text = await pkg.zip.files[cf].async("text");
-          if (/qs_tile_tint_on/.test(text)) foundFiles.push({ path: cf, text });
-        } catch (e) { /* bo qua */ }
-      }
-      if (foundFiles.length) {
-        systemuiPkgPath = p;
-        systemuiColorFiles = foundFiles;
-        const m = foundFiles[0].text.match(/qs_tile_tint_on[^#]*(#[0-9A-Fa-f]{6,8})/);
-        systemuiTintColor = m ? m[1] : "";
-        controlTileBgPath = pkg.allNames.find(n => /qs_tile_bg/i.test(n)) || null;
-        controlMaskPath = pkg.allNames.find(n => /mask_control_center/i.test(n) && !/main_color/i.test(n)) || null;
-      }
+      await detectSystemuiColorInPackage(p, pkg);
     }
     if (pkg.label === "Màn hình luôn bật (AOD)" && !aodPkgPath) {
-      const themeFile = pkg.allNames.find(n => n === "theme.xml" || n.endsWith("/theme.xml"));
-      if (themeFile) {
-        try {
-          aodPkgPath = p; aodThemeXmlPath = themeFile;
-          aodThemeXmlRaw = await pkg.zip.files[themeFile].async("text");
-          const tags = ["style", "clock", "background", "fontcolor", "timecolor"];
-          for (const t of tags) {
-            const m = aodThemeXmlRaw.match(new RegExp(t + '="([^"]*)"'));
-            aodFields[t] = m ? m[1] : "";
-          }
-          aodDigitBgPaths = pkg.allNames.filter(n => /digit_bg\.(png|jpg|jpeg)$/i.test(n));
-        } catch (e) { /* bo qua */ }
-      }
+      await detectAodConfigInPackage(p, pkg);
     }
   }
 
@@ -2139,7 +2147,7 @@ async function handleDonorFile(e) {
     });
   });
   listEl.querySelectorAll("button[data-donor-path]").forEach(btn => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
       const p = btn.dataset.donorPath;
       const wasAlready = !!nestedPackages[p];
       if (wasAlready) {
@@ -2150,6 +2158,17 @@ async function handleDonorFile(e) {
       }
       nestedPackages[p] = donorNestedPackages[p];
       nestedPackages[p].isFromDonor = true; // danh dau de tu dong luu biet phai luu rieng, khong tu re-parse lai duoc tu file goc
+      // Doi voi 2 goi dac biet (Trung tam dieu khien, AOD), phai chu dong do lai file mau
+      // vi tool CHI dong ho phat hien nay 1 lan luc moi mo theme, khong tu chay lai khi ghep them goi moi.
+      // Day chinh la loi lam mat gop y truoc do - sua o day.
+      if (nestedPackages[p].label === "Trung tâm điều khiển") {
+        await detectSystemuiColorInPackage(p, nestedPackages[p]);
+        if (document.getElementById("panel-system")) renderSystemTab();
+      }
+      if (nestedPackages[p].label === "Màn hình luôn bật (AOD)") {
+        await detectAodConfigInPackage(p, nestedPackages[p]);
+        if (document.getElementById("panel-system")) renderSystemTab();
+      }
       toast(`Đã ${wasAlready ? "thay thế bằng" : "ghép"} "${donorNestedPackages[p].label}" — nhớ bấm Xuất file theme`, "ok");
       logMerge(`${wasAlready ? "Thay thế" : "Ghép"} gói: ${donorNestedPackages[p].label}`);
       // KHONG ve lai ca tab (renderIconsTab) vi se mat luon danh sach donor dang mo,
