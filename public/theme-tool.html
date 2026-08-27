@@ -1670,6 +1670,7 @@ function renderIconsTab() {
 
   let options = pkgPaths.map(p => `<option value="${escapeAttr(p)}" ${p === currentPkgPath ? "selected" : ""}>${escapeHtml(nestedPackages[p].label)} (${nestedPackages[p].names.length})</option>`).join("");
   el.innerHTML = `
+    <div class="card" id="mergeLogCard" style="margin-bottom:14px"></div>
     <div class="card-hint">Đang chỉnh bản: <b>${activeIconVariant === "light" ? "Sáng" : "Tối"}</b>. Mỗi bản (Sáng/Tối) lưu icon riêng, không ảnh hưởng nhau — xuất file ở bản nào thì được đúng bộ icon của bản đó.</div>
     <div class="variant-toggle">
       <button class="seg-btn ${activeIconVariant === "light" ? "active" : ""}" id="variantLightBtn">☀️ Bản Sáng</button>
@@ -1703,7 +1704,6 @@ function renderIconsTab() {
     <div class="card" style="margin-top:18px">
       <h3>Ghép gói từ theme khác</h3>
       <div class="card-hint">Mở thêm 1 file .hwt/.hnt khác đã có sẵn phần bạn cần (ví dụ trung tâm điều khiển, thanh trạng thái) — ghép nguyên gói đó vào theme đang sửa.</div>
-      <div id="mergeLogBox" style="margin-bottom:12px"></div>
       <button class="btn small" id="openDonorBtn">Chọn file theme khác</button>
       <input type="file" id="donorInput" accept=".hwt,.hnt,.zip" style="display:none">
       <div id="donorList" style="margin-top:12px"></div>
@@ -1786,13 +1786,13 @@ function logMerge(label) {
   renderMergeLogBox();
 }
 function renderMergeLogBox() {
-  const box = document.getElementById("mergeLogBox");
+  const box = document.getElementById("mergeLogCard");
   if (!box) return;
   if (mergeLog.length === 0) {
-    box.innerHTML = '<div class="hint">Chưa ghép gì từ theme khác trong phiên làm việc này.</div>';
+    box.innerHTML = '<h3>📋 Đã ghép từ theme khác</h3><div class="hint">Chưa ghép gì trong phiên làm việc này. Ghép gì thì sẽ hiện ngay đây, ở đúng vị trí này.</div>';
     return;
   }
-  box.innerHTML = '<div class="card-hint" style="margin-bottom:6px">Đã ghép trong phiên này (theo thứ tự):</div><ul style="margin:0;padding-left:18px;font-size:12px;color:var(--text-dim)">' +
+  box.innerHTML = '<h3>📋 Đã ghép từ theme khác (' + mergeLog.length + ')</h3><ul style="margin:0;padding-left:18px;font-size:13px">' +
     mergeLog.map(m => `<li>${escapeHtml(m.label)} <span style="color:var(--text-mute)">— ${m.time}</span></li>`).join("") +
     '</ul>';
 }
