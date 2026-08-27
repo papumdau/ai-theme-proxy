@@ -823,10 +823,25 @@ async function runAutosave() {
   autosaveInProgress = true;
   try {
     const mergedPkgBlobs = {};
+    const mergedPkgIsVirtual = {};
+    const mergedPkgVirtualPrefix = {};
     for (const p of Object.keys(nestedPackages)) {
-      if (nestedPackages[p].isVirtual) continue;
-      if (!nestedPackages[p].isFromDonor) continue; // chi can luu rieng nhung goi LAY TU THEME KHAC (khong tu re-parse lai duoc)
-      try { mergedPkgBlobs[p] = await nestedPackages[p].zip.generateAsync({ type: "blob" }); } catch (e) { /* bo qua */ }
+      const pkg = nestedPackages[p];
+      if (!pkg.isFromDonor) continue; // chi can luu rieng nhung goi LAY TU THEME KHAC (khong tu re-parse lai duoc)
+      try {
+        if (pkg.isVirtual) {
+          const tmpZip = new JSZip();
+          for (const rel of Object.keys(pkg.zip.files)) {
+            const data = await pkg.zip.files[rel].async("uint8array");
+            tmpZip.file(rel, data);
+          }
+          mergedPkgBlobs[p] = await tmpZip.generateAsync({ type: "blob" });
+          mergedPkgIsVirtual[p] = true;
+          mergedPkgVirtualPrefix[p] = pkg.virtualPrefix;
+        } else {
+          mergedPkgBlobs[p] = await pkg.zip.generateAsync({ type: "blob" });
+        }
+      } catch (e) { /* bo qua */ }
     }
     const state = {
       savedAt: Date.now(),
@@ -834,6 +849,7 @@ async function runAutosave() {
       fileBlob: originalFileBlobForSave,
       mergedPkgBlobs,
       mergedPkgLabels: Object.fromEntries(Object.keys(mergedPkgBlobs).map(p => [p, nestedPackages[p].label])),
+      mergedPkgIsVirtual, mergedPkgVirtualPrefix,
       mergeLog: [...mergeLog],
       currentPkgPath, activeIconVariant,
       iconReplacementsLight: cloneReplMap(iconReplacementsLight),
@@ -864,7 +880,10 @@ async function restoreAutosaveState(s) {
       const zip = await JSZip.loadAsync(s.mergedPkgBlobs[p]);
       const allNames = Object.keys(zip.files).filter(n => !zip.files[n].dir);
       const pngNames = allNames.filter(n => n.toLowerCase().endsWith(".png")).sort();
-      nestedPackages[p] = { zip, names: pngNames, allNames, label: s.mergedPkgLabels[p] || p, isFromDonor: true };
+      const isVirt = s.mergedPkgIsVirtual && s.mergedPkgIsVirtual[p];
+      nestedPackages[p] = isVirt
+        ? { zip, names: pngNames, allNames, label: s.mergedPkgLabels[p] || p, isVirtual: true, virtualPrefix: s.mergedPkgVirtualPrefix[p], isFromDonor: true }
+        : { zip, names: pngNames, allNames, label: s.mergedPkgLabels[p] || p, isFromDonor: true };
     } catch (e) { /* bo qua goi loi */ }
   }
   mergeLog = s.mergeLog || [];
@@ -2024,9 +2043,23 @@ async function handleDonorFile(e) {
   const donorLockPaths = paths.filter(p => p.startsWith("unlock/lockscreen/") && !donorZip.files[p].dir);
   if (donorLockPaths.length > 0) {
     const subfolders = new Set();
+    const looseLockFiles = [];
     for (const p of donorLockPaths) {
       const rest = p.slice("unlock/lockscreen/".length);
       if (rest.includes("/")) subfolders.add(rest.split("/")[0]);
+      else looseLockFiles.push(rest);
+    }
+    // Anh trang tri nam THANG trong unlock/lockscreen/ cua FILE DONOR (khong co thu muc con)
+    // - cung 1 loi da sua ben file dang mo, quen sua ben nay, gio sua cho dong bo.
+    const pngLoose = looseLockFiles.filter(n => n.toLowerCase().endsWith(".png")).sort();
+    if (pngLoose.length > 0) {
+      const prefix = "unlock/lockscreen/";
+      const fakeFilesLoose = {};
+      for (const rel of looseLockFiles) fakeFilesLoose[rel] = donorZip.files[prefix + rel];
+      donorNestedPackages["__virtual__" + prefix] = {
+        zip: { files: fakeFilesLoose }, names: pngLoose, allNames: looseLockFiles,
+        label: "Đồng hồ & trang trí màn khoá", isVirtual: true, virtualPrefix: prefix, sourcePath: "__virtual__" + prefix,
+      };
     }
     for (const sub of subfolders) {
       const prefix = "unlock/lockscreen/" + sub + "/";
@@ -5476,6 +5509,25 @@ document.getElementById("exportBtn").addEventListener("click", async () => {
       if (nestedPackages[p].isVirtual) continue;
       if (paths.includes(p)) continue;
       outZip.file(p, await buildInnerPackageBytes(p));
+    }
+
+    // Goi "ao" (vd Dong ho & trang tri man khoa) ghep tu theme khac co the mang theo
+    // duong dan HOAN TOAN MOI ma theme dang mo chua tung co - vong lap tren chi xu ly
+    // goi that (co file zip rieng), can them buoc nay de khong bo sot file moi.
+    for (const vKey of Object.keys(nestedPackages)) {
+      const vpkg = nestedPackages[vKey];
+      if (!vpkg.isVirtual || !vpkg.isFromDonor) continue;
+      const deletedSet = pkgDeleted[vKey] || new Set();
+      for (const rel of vpkg.allNames) {
+        const fullPath = vpkg.virtualPrefix + rel;
+        if (paths.includes(fullPath)) continue; // da co san, vong lap chinh o tren da xu ly roi
+        if (deletedSet.has(rel)) continue;
+        const repl = (iconReplacements[vKey] || {})[rel];
+        try {
+          const bytes = repl ? await repl.arrayBuffer() : await vpkg.zip.files[rel].async("uint8array");
+          outZip.file(fullPath, bytes);
+        } catch (e) { /* bo qua file loi */ }
+      }
     }
 
     const existingWpBases = paths.map(p => p.split("/").pop());
