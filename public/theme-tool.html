@@ -645,6 +645,7 @@ let carouselReplacements = {}; // duong dan day du -> blob anh moi
 let onetakeConfigPath = null;
 let onetakeFiles = {}; // { day: "duong/dan/that.jpg", night: ..., dusk: ... }
 let onetakeReplacements = {};
+let mergeLog = []; // [{label, time}] - danh sach tong hop moi thu da ghep tu theme khac trong phien lam viec nay
 let descXmlRaw = "";
 let descFields = {};
 let descExtraJson = null; // { extraContentFlag, en: {title, briefInfo}, ... } - ten hien thi that theo ngon ngu may
@@ -775,6 +776,7 @@ async function handleFile(file) {
   onetakeSynthEnabled = false;
   carouselSynthPaths = new Set();
   onetakeSynthPaths = new Set();
+  mergeLog = [];
   carouselReplacements = {};
   onetakeConfigPath = null;
   onetakeFiles = {};
@@ -1701,11 +1703,13 @@ function renderIconsTab() {
     <div class="card" style="margin-top:18px">
       <h3>Ghép gói từ theme khác</h3>
       <div class="card-hint">Mở thêm 1 file .hwt/.hnt khác đã có sẵn phần bạn cần (ví dụ trung tâm điều khiển, thanh trạng thái) — ghép nguyên gói đó vào theme đang sửa.</div>
+      <div id="mergeLogBox" style="margin-bottom:12px"></div>
       <button class="btn small" id="openDonorBtn">Chọn file theme khác</button>
       <input type="file" id="donorInput" accept=".hwt,.hnt,.zip" style="display:none">
       <div id="donorList" style="margin-top:12px"></div>
     </div>
   `;
+  renderMergeLogBox();
   document.getElementById("pkgSelect").addEventListener("change", (e) => {
     currentPkgPath = e.target.value;
     document.getElementById("iconSearch").value = "";
@@ -1777,6 +1781,21 @@ function renderIconsTab() {
   renderIconGrid("");
 }
 
+function logMerge(label) {
+  mergeLog.push({ label, time: new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) });
+  renderMergeLogBox();
+}
+function renderMergeLogBox() {
+  const box = document.getElementById("mergeLogBox");
+  if (!box) return;
+  if (mergeLog.length === 0) {
+    box.innerHTML = '<div class="hint">Chưa ghép gì từ theme khác trong phiên làm việc này.</div>';
+    return;
+  }
+  box.innerHTML = '<div class="card-hint" style="margin-bottom:6px">Đã ghép trong phiên này (theo thứ tự):</div><ul style="margin:0;padding-left:18px;font-size:12px;color:var(--text-dim)">' +
+    mergeLog.map(m => `<li>${escapeHtml(m.label)} <span style="color:var(--text-mute)">— ${m.time}</span></li>`).join("") +
+    '</ul>';
+}
 async function handleDonorFile(e) {
   if (!e.target.files.length) return;
   const listEl = document.getElementById("donorList");
@@ -1951,6 +1970,7 @@ async function handleDonorFile(e) {
       }
       wallpaperReplacements[name] = blob;
       toast(`Đã ghép hình "${WALLPAPER_LABELS[name] || name}" vào theme — nhớ bấm Xuất file theme`, "ok");
+      logMerge(`Hình nền: ${WALLPAPER_LABELS[name] || name}`);
       btn.textContent = "✓ Đã ghép — bấm lại để ghép lại lần nữa";
       // KHONG goi renderWallpaperTab() de tranh nuc mat danh sach donor dang mo (dung nhu da sua cho goi icon)
       // Neu tab Hinh nen dang mo san (it xay ra vi donor nam trong tab Icon), lam moi de thay ngay - khong bat buoc.
@@ -1968,6 +1988,7 @@ async function handleDonorFile(e) {
       }
       nestedPackages[p] = donorNestedPackages[p];
       toast(`Đã ${wasAlready ? "thay thế bằng" : "ghép"} "${donorNestedPackages[p].label}" — nhớ bấm Xuất file theme`, "ok");
+      logMerge(`${wasAlready ? "Thay thế" : "Ghép"} gói: ${donorNestedPackages[p].label}`);
       // KHONG ve lai ca tab (renderIconsTab) vi se mat luon danh sach donor dang mo,
       // bat nguoi dung phai chon lai file tu dau moi ghep duoc phan tiep theo.
       // Chi cap nhat dung nut nay + lam moi luoi icon neu dang xem dung goi vua ghep.
@@ -2003,6 +2024,7 @@ async function handleDonorFile(e) {
     let lm;
     while ((lm = levelRe.exec(chargingConfigRaw))) chargingFields.push({ tag: lm[1], content: lm[2], color: lm[3] });
     toast("Đã ghép màn sạc pin — nhớ bấm Xuất file theme", "ok");
+    logMerge("Màn hình sạc pin động");
     renderChargingTab();
   });
   const mergeFontBtn = document.getElementById("mergeFontBtn");
@@ -2013,6 +2035,8 @@ async function handleDonorFile(e) {
     customFontFile = new File([bytes], fontFileName, { type: "font/ttf" });
     customFontDisplayName = fontFileName.replace(/\.ttf$/i, "");
     toast(`Đã ghép font "${customFontDisplayName}" — nhớ bấm Xuất file theme`, "ok");
+    logMerge(`Font chữ: ${customFontDisplayName}`);
+    mergeFontBtn.textContent = "✓ Đã ghép — bấm lại để ghép lại lần nữa";
     if (document.getElementById("panel-font")) renderFontTab();
   });
   if (donorFpIconPath) {
@@ -2030,6 +2054,8 @@ async function handleDonorFile(e) {
     const bytes = await donorZip.files[donorFpIconPath].async("uint8array");
     fpIconReplacement = new File([bytes], "fingerprint_icon.svg", { type: "image/svg+xml" });
     toast("Đã ghép icon vân tay — nhớ bấm Xuất file theme", "ok");
+    logMerge("Icon vân tay");
+    mergeFpBtn.textContent = "✓ Đã ghép — bấm lại để ghép lại lần nữa";
     if (document.getElementById("panel-fingerprint")) renderFingerprintTab();
   });
   const mergeCarouselBtn = document.getElementById("mergeCarouselBtn");
@@ -2052,6 +2078,8 @@ async function handleDonorFile(e) {
       }
     }
     toast(`Đã ghép ${matched} ảnh Sáng/Tối từ file này${missed ? `, ${missed} ảnh không khớp/bỏ qua` : ""} — nhớ bấm Xuất file theme`, "ok");
+    logMerge(`Hình nền Sáng/Tối (${matched} ảnh)`);
+    mergeCarouselBtn.textContent = "✓ Đã ghép — bấm lại để ghép lại lần nữa";
     if (document.getElementById("panel-wallpaper")) renderWallpaperTab();
   });
 }
