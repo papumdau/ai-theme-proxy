@@ -504,6 +504,7 @@
         <option value="posterize">Giảm số lượng màu (poster hoá)</option>
         <option value="outline-glow">Viền phát sáng (giữ icon gốc, thêm viền sáng quanh)</option>
         <option value="bg-swap-keep-color">Đổi nền sáng↔tối, giữ nguyên chi tiết có màu</option>
+        <option value="white-detail-black-bg">Chi tiết trắng, nền tự động đen (điền đầy)</option>
       </select>
     </div>
     <div id="filterColorFields">
@@ -546,6 +547,7 @@
         <option value="sepia">Vintage nâu cổ điển (sepia)</option>
         <option value="posterize">Giảm số lượng màu (poster hoá)</option>
         <option value="bg-swap-keep-color">Đổi nền sáng↔tối, giữ nguyên chi tiết có màu</option>
+        <option value="white-detail-black-bg">Chi tiết trắng, nền tự động đen (điền đầy)</option>
         <option value="round-only">Chỉ bo góc ảnh (không đổi màu)</option>
       </select>
     </div>
@@ -5127,6 +5129,13 @@ function applyPixelFilter(imgData, kind, color1, color2) {
       const chroma = mx - mn; // cang gan 0 nghia la cang xam/den/trang
       if (chroma < 26) {
         d[i] = 255 - r; d[i + 1] = 255 - g; d[i + 2] = 255 - b;
+      }
+    } else if (kind === "white-detail-black-bg") {
+      // Phan co hinh (icon that, du mo it nhieu) -> trang duc. Phan trong suot (nen) -> lap day den duc.
+      if (a > 10) {
+        d[i] = 255; d[i + 1] = 255; d[i + 2] = 255; d[i + 3] = 255;
+      } else {
+        d[i] = 0; d[i + 1] = 0; d[i + 2] = 0; d[i + 3] = 255;
       }
     }
   }
