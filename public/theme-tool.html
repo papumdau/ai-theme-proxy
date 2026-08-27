@@ -1951,7 +1951,9 @@ async function handleDonorFile(e) {
       }
       wallpaperReplacements[name] = blob;
       toast(`Đã ghép hình "${WALLPAPER_LABELS[name] || name}" vào theme — nhớ bấm Xuất file theme`, "ok");
-      if (document.getElementById("panel-wallpaper")) renderWallpaperTab();
+      btn.textContent = "✓ Đã ghép — bấm lại để ghép lại lần nữa";
+      // KHONG goi renderWallpaperTab() de tranh nuc mat danh sach donor dang mo (dung nhu da sua cho goi icon)
+      // Neu tab Hinh nen dang mo san (it xay ra vi donor nam trong tab Icon), lam moi de thay ngay - khong bat buoc.
     });
   });
   listEl.querySelectorAll("button[data-donor-path]").forEach(btn => {
