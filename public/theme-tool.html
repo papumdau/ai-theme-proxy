@@ -254,8 +254,12 @@
   .tool-row .btn.active-tool { background: var(--accent-dim); border-color: var(--accent-dim); color: #fff; }
   #textEditBox { position: absolute; top: 8px; left: 8px; background: var(--panel); border: 1px solid var(--accent); border-radius: 6px; padding: 6px; display: flex; gap: 6px; z-index: 10; }
   #textEditBox input { background: var(--panel-2); border: 1px solid var(--border-strong); color: var(--text); border-radius: 4px; padding: 4px 6px; font-size: 12px; width: 100px; }
-  #ninePatchOverlay, #recolorOverlay, #aiOverlay, #batchAiOverlay, #filterOverlay, #roundBatchOverlay, #wpFilterOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; align-items: center; justify-content: center; padding: 20px; }
-  #ninePatchOverlay.open, #recolorOverlay.open, #aiOverlay.open, #batchAiOverlay.open, #filterOverlay.open, #roundBatchOverlay.open, #wpFilterOverlay.open { display: flex; }
+  #ninePatchOverlay, #recolorOverlay, #aiOverlay, #batchAiOverlay, #filterOverlay, #roundBatchOverlay, #wpFilterOverlay, #cropOverlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; align-items: center; justify-content: center; padding: 20px; }
+  #ninePatchOverlay.open, #recolorOverlay.open, #aiOverlay.open, #batchAiOverlay.open, #filterOverlay.open, #roundBatchOverlay.open, #wpFilterOverlay.open, #cropOverlay.open { display: flex; }
+  #cropStage { position: relative; width: 260px; height: 260px; margin: 0 auto; overflow: hidden; border-radius: 12px; background: #000; touch-action: none; }
+  #cropImg { position: absolute; top: 0; left: 0; transform-origin: 0 0; cursor: grab; user-select: none; -webkit-user-drag: none; }
+  #cropImg:active { cursor: grabbing; }
+  #cropMaskCircle { position: absolute; inset: 0; pointer-events: none; border-radius: 50%; box-shadow: 0 0 0 2000px rgba(0,0,0,0.55); border: 2px solid rgba(255,255,255,0.85); }
   .ai-reference-box { display: flex; align-items: center; gap: 10px; background: var(--panel-2); border: 1px solid var(--border-strong); border-radius: 8px; padding: 8px 10px; margin-bottom: 12px; font-size: 11px; color: var(--text-dim); }
   .ai-reference-box img { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; flex-shrink: 0; background: #000; }
   .ai-compare-box { display: flex; gap: 14px; justify-content: center; margin-bottom: 12px; }
@@ -557,6 +561,24 @@
     <div class="draw-actions">
       <button class="btn" id="wpFilterCancelBtn">Huỷ</button>
       <button class="btn primary" id="wpFilterApplyBtn">Áp dụng</button>
+    </div>
+  </div>
+</div>
+
+<div id="cropOverlay">
+  <div class="draw-box">
+    <h3 id="cropOverlayTitle">Chỉnh vùng cắt</h3>
+    <div class="hint" style="margin-bottom:10px">Kéo ảnh để dịch chuyển, dùng thanh trượt để phóng to/thu nhỏ — khung tròn là phần sẽ được lấy.</div>
+    <div id="cropStage">
+      <img id="cropImg" alt="">
+      <div id="cropMaskCircle"></div>
+    </div>
+    <div class="field" style="margin-top:10px"><label>Phóng to / Thu nhỏ</label>
+      <input type="range" id="cropZoomRange" min="100" max="400" value="100" style="width:100%">
+    </div>
+    <div class="draw-actions">
+      <button class="btn" id="cropCancelBtn">Huỷ</button>
+      <button class="btn primary" id="cropApplyBtn">Xong, dùng ảnh này</button>
     </div>
   </div>
 </div>
@@ -1615,14 +1637,21 @@ async function renderFingerprintTab() {
       const f = e.target.files[0];
       if (f.name.toLowerCase().endsWith(".svg")) {
         fpIconReplacement = f;
+        document.getElementById("fpThumb").innerHTML = `<img src="${await blobToDataURL(fpIconReplacement)}">`;
+        document.getElementById("fpStatus").textContent = "Đã chọn ảnh mới — nhớ bấm Xuất file theme";
+        document.getElementById("fpStatus").className = "status changed";
+        toast("Đã đổi icon vân tay", "ok");
       } else {
-        toast("Đang cắt vuông và đóng gói thành SVG...", "ok");
-        fpIconReplacement = await rasterToSquareSvgFile(f);
+        openCropOverlay(f, async (croppedBlob) => {
+          toast("Đang đóng gói thành SVG...", "ok");
+          fpIconReplacement = await rasterToSquareSvgFile(new File([croppedBlob], "fingerprint.png", { type: "image/png" }));
+          document.getElementById("fpThumb").innerHTML = `<img src="${await blobToDataURL(fpIconReplacement)}">`;
+          document.getElementById("fpStatus").textContent = "Đã chọn ảnh mới — nhớ bấm Xuất file theme";
+          document.getElementById("fpStatus").className = "status changed";
+          toast("Đã đổi icon vân tay", "ok");
+        });
       }
-      document.getElementById("fpThumb").innerHTML = `<img src="${await blobToDataURL(fpIconReplacement)}">`;
-      document.getElementById("fpStatus").textContent = "Đã chọn ảnh mới — nhớ bấm Xuất file theme";
-      document.getElementById("fpStatus").className = "status changed";
-      toast("Đã đổi icon vân tay", "ok");
+      e.target.value = "";
     });
     document.getElementById("fpAiBtn").addEventListener("click", () => openAiOverlay("fp-icon", null, null));
   }
@@ -2202,6 +2231,84 @@ async function removeBackgroundFromDataUrl(dataUrl) {
   return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), "image/png"));
 }
 
+let cropState = null;
+let cropDragging = false, cropLastX = 0, cropLastY = 0;
+function openCropOverlay(file, onDone) {
+  const overlay = document.getElementById("cropOverlay");
+  const imgEl = document.getElementById("cropImg");
+  const zoomRange = document.getElementById("cropZoomRange");
+  zoomRange.value = 100;
+  const url = URL.createObjectURL(file);
+  imgEl.onload = () => {
+    const stageSize = 260;
+    const nw = imgEl.naturalWidth, nh = imgEl.naturalHeight;
+    const baseScale = Math.max(stageSize / nw, stageSize / nh);
+    cropState = { nw, nh, baseScale, scale: baseScale, tx: (stageSize - nw * baseScale) / 2, ty: (stageSize - nh * baseScale) / 2, stageSize };
+    applyCropTransform();
+  };
+  imgEl.src = url;
+  overlay.classList.add("open");
+  overlay._onDone = onDone;
+}
+function applyCropTransform() {
+  const imgEl = document.getElementById("cropImg");
+  imgEl.style.width = cropState.nw + "px";
+  imgEl.style.height = cropState.nh + "px";
+  imgEl.style.transform = `translate(${cropState.tx}px, ${cropState.ty}px) scale(${cropState.scale})`;
+}
+function clampCropTranslate() {
+  const s = cropState;
+  const dispW = s.nw * s.scale, dispH = s.nh * s.scale;
+  s.tx = Math.min(0, Math.max(s.stageSize - dispW, s.tx));
+  s.ty = Math.min(0, Math.max(s.stageSize - dispH, s.ty));
+}
+(function setupCropOverlayEvents() {
+  const stage = document.getElementById("cropStage");
+  stage.addEventListener("pointerdown", (e) => {
+    if (!cropState) return;
+    cropDragging = true; cropLastX = e.clientX; cropLastY = e.clientY;
+    stage.setPointerCapture(e.pointerId);
+  });
+  stage.addEventListener("pointermove", (e) => {
+    if (!cropDragging || !cropState) return;
+    cropState.tx += e.clientX - cropLastX; cropState.ty += e.clientY - cropLastY;
+    cropLastX = e.clientX; cropLastY = e.clientY;
+    clampCropTranslate(); applyCropTransform();
+  });
+  stage.addEventListener("pointerup", () => { cropDragging = false; });
+  stage.addEventListener("pointercancel", () => { cropDragging = false; });
+  document.getElementById("cropZoomRange").addEventListener("input", (e) => {
+    if (!cropState) return;
+    const s = cropState;
+    const center = s.stageSize / 2;
+    const imgX = (center - s.tx) / s.scale, imgY = (center - s.ty) / s.scale;
+    s.scale = s.baseScale * (Number(e.target.value) / 100);
+    s.tx = center - imgX * s.scale; s.ty = center - imgY * s.scale;
+    clampCropTranslate(); applyCropTransform();
+  });
+  document.getElementById("cropCancelBtn").addEventListener("click", () => {
+    document.getElementById("cropOverlay").classList.remove("open");
+    cropState = null;
+  });
+  document.getElementById("cropApplyBtn").addEventListener("click", () => {
+    if (!cropState) return;
+    const s = cropState;
+    const outSize = 512;
+    const ratio = outSize / s.stageSize;
+    const canvas = document.createElement("canvas");
+    canvas.width = outSize; canvas.height = outSize;
+    const ctx = canvas.getContext("2d");
+    ctx.beginPath(); ctx.arc(outSize / 2, outSize / 2, outSize / 2, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
+    const imgEl = document.getElementById("cropImg");
+    ctx.drawImage(imgEl, s.tx * ratio, s.ty * ratio, s.nw * s.scale * ratio, s.nh * s.scale * ratio);
+    canvas.toBlob((blob) => {
+      const overlay = document.getElementById("cropOverlay");
+      overlay.classList.remove("open");
+      if (overlay._onDone) overlay._onDone(blob);
+      cropState = null;
+    }, "image/png");
+  });
+})();
 async function rasterToSquareSvgFile(file, size) {
   size = size || 512;
   const dataUrl = await blobToDataURL(file);
