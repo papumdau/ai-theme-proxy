@@ -672,6 +672,7 @@ let pkgDeleted = {};
 let pkgTextEdits = {};
 
 let systemuiPkgPath = null, systemuiColorFiles = [], systemuiTintColor = "";
+let systemuiOffTintColor = ""; // mau icon luc TAT (qs_tile_tint_off) - TACH RIENG voi mau luc bat
 let controlTileBgPath = null, controlMaskPath = null;
 // Các tên màu đã xác nhận thật là cùng 1 "màu chủ đạo hệ thống" trong file mẫu thật (Dark Emotion EMUI11).
 // qs_tile_tint_on + hnnotification_brightness_icon_color: đã kiểm chứng chạy tốt từ trước, GIỮ NGUYÊN.
@@ -959,6 +960,8 @@ async function detectSystemuiColorInPackage(p, pkg) {
     systemuiColorFiles = foundFiles;
     const m = foundFiles[0].text.match(/qs_tile_tint_on[^#]*(#[0-9A-Fa-f]{6,8})/);
     systemuiTintColor = m ? m[1] : "";
+    const mOff = foundFiles[0].text.match(/qs_tile_tint_off[^#]*(#[0-9A-Fa-f]{6,8})/);
+    systemuiOffTintColor = mOff ? mOff[1] : "";
     controlTileBgPath = pkg.allNames.find(n => /qs_tile_bg/i.test(n)) || null;
     controlMaskPath = pkg.allNames.find(n => /mask_control_center/i.test(n) && !/main_color/i.test(n)) || null;
     return true;
@@ -1072,7 +1075,7 @@ async function handleFile(file) {
     } catch (e) { /* khong phai zip con, bo qua */ }
   }
 
-  systemuiPkgPath = null; systemuiColorFiles = []; systemuiTintColor = "";
+  systemuiPkgPath = null; systemuiColorFiles = []; systemuiTintColor = ""; systemuiOffTintColor = "";
   controlTileBgPath = null; controlMaskPath = null;
   aodPkgPath = null; aodThemeXmlPath = null; aodThemeXmlRaw = ""; aodFields = {};
   aodDigitBgPaths = [];
@@ -4304,6 +4307,10 @@ function renderSystemTab() {
         <div class="row"><input type="color" id="systemuiColorInput" value="${argbOrRgbToHex6(systemuiTintColor)}"></div>
         <div class="swatches" id="systemuiPresetSwatches" style="margin-top:8px"></div>
       </div>
+      ${systemuiOffTintColor ? `<div class="field"><label>Màu icon khi TẮT (khác màu lúc bật)</label>
+        <div class="row"><input type="color" id="systemuiOffColorInput" value="${argbOrRgbToHex6(systemuiOffTintColor)}"></div>
+        <div class="hint">Đây là màu icon lúc chưa bật (Wi-Fi/Bluetooth đang tắt) — tách riêng với màu lúc bật ở trên. Muốn đảo ngược kiểu "tắt=trắng có màu, bật=đen nhạt" thì đổi cả 2 ô ngược lại nhau. <b>Nền tròn đen/trắng của ô là 1 tấm ảnh riêng, không phải mã màu này</b> — sửa ở nút "Tạo hình dạng ô" bên dưới.</div>
+      </div>` : ""}
       <div class="row" style="margin-top:10px;gap:8px">
         <input type="text" id="systemuiPresetName" placeholder="Đặt tên để lưu riêng, ví dụ: Cam của tôi" style="flex:1">
         <button class="btn small" id="saveSystemuiPresetBtn">Lưu bộ riêng</button>
@@ -4518,6 +4525,21 @@ function renderSystemTab() {
       pkgTextEdits[systemuiPkgPath][f.path] = f.text;
     }
     toast(`Đã đổi màu trung tâm điều khiển + thanh trạng thái (đồng bộ ${systemuiColorFiles.length} file)`, "ok");
+  });
+
+  const scOffInput = document.getElementById("systemuiOffColorInput");
+  if (scOffInput) scOffInput.addEventListener("input", () => {
+    systemuiOffTintColor = scOffInput.value;
+    if (!pkgTextEdits[systemuiPkgPath]) pkgTextEdits[systemuiPkgPath] = {};
+    for (const f of systemuiColorFiles) {
+      f.text = f.text.replace(/(qs_tile_tint_off[^#]*#)([0-9A-Fa-f]{6,8})/g, (m, pre, oldHex) => {
+        const alphaLen = oldHex.length - 6;
+        const alpha = alphaLen > 0 ? oldHex.slice(0, alphaLen) : "";
+        return pre + alpha + systemuiOffTintColor.replace("#", "");
+      });
+      pkgTextEdits[systemuiPkgPath][f.path] = f.text;
+    }
+    toast("Đã đổi màu icon lúc tắt", "ok");
   });
   const swatchWrapSys = document.getElementById("systemuiPresetSwatches");
   if (swatchWrapSys) {
