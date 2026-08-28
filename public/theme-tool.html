@@ -1320,10 +1320,12 @@ function renderInfoTab() {
     ["author", "Tác giả / thương hiệu"],
     ["designer", "Người thiết kế"],
     ["briefInfo", "Mô tả ngắn"],
+  ];
+  const compatEditable = [
     ["version", "Phiên bản theme"],
+    ["screen", "Độ phân giải (screen)"],
   ];
   const readonly = [
-    ["screen", "Độ phân giải"],
     ["min_feature_version", "Phiên bản engine tối thiểu"],
     ["icon-show", "Có icon tuỳ chỉnh"],
     ["aod-mode-supported", "Chế độ Always On Display"],
@@ -1340,6 +1342,13 @@ function renderInfoTab() {
         ? `<textarea data-tag="${tag}">${escapeHtml(descFields[tag] || "")}</textarea>`
         : `<input type="text" data-tag="${tag}" value="${escapeAttr(descFields[tag] || "")}">`;
       html += `</div>`;
+    }
+    html += '</div>';
+    html += `<div class="card" style="border-left:3px solid #e0a800">
+      <h3>⚠️ Ảnh hưởng máy nào cài được — sửa cẩn thận</h3>
+      <div class="card-hint">Nhiều dòng máy Honor báo "không tìm thấy theme" hoặc "không tương thích" sau khi cài — nguyên nhân hay gặp nhất chính là 2 mã này không khớp với máy đó. Theme mẫu thật đều dùng <b>screen = FHD</b> (phổ biến nhất, phần lớn máy Honor đời mới đều FHD) — <b>chưa có ai xác nhận giá trị nào khác có tương thích rộng hơn hay không, đừng đoán mò đổi bừa nếu không đang thử khắc phục lỗi cụ thể</b>.</div>`;
+    for (const [tag, label] of compatEditable) {
+      html += `<div class="field"><label>${label}</label><input type="text" data-tag="${tag}" value="${escapeAttr(descFields[tag] || "")}"></div>`;
     }
     html += '</div>';
     if (descExtraJson) {
