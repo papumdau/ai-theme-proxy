@@ -1633,9 +1633,9 @@ async function renderWallpaperTab(model) {
       <h3>🌗 Hình nền theo Chế độ sáng/tối</h3>
       <div class="card-hint">Theme này tự đổi hình theo Chế độ tối của máy (Cài đặt → Hiển thị → Chế độ tối) — kể cả khi máy để "Tự động". Đổi ảnh ở đây, máy tự áp dụng đúng lúc, không cần quan tâm gì thêm.${onetakeSynthEnabled ? ' <b>Mới tạo — chưa có ảnh sẵn, cần tải ảnh cho từng ô bên dưới trước khi xuất file.</b>' : ""}</div>
       <div id="carouselSimpleList"></div>
-    </div>` : `<div class="card">
-      <h3>🌗 Hình nền theo Chế độ sáng/tối</h3>
-      <div class="card-hint">Theme này chưa có tính năng này. Bật lên nếu muốn theme tự đổi hình theo Chế độ tối của máy — <b>chưa có ai cài thử lên máy Honor thật để xác nhận chạy đúng</b>, kể cả khi tự làm theo đúng cấu trúc mẫu thật.</div>
+    </div>` : `<div class="card" style="border-left:3px solid var(--accent)">
+      <h3>✨ AOD chuyển tiếp mượt sang màn hình chính (onetake)</h3>
+      <div class="card-hint">Kiểu hiệu ứng: chạm màn AOD tối → tự trôi mượt sáng dần thành màn hình chính (không phải video, máy tự dựng từ 2 ảnh). Theme này CHƯA có sẵn — bấm nút dưới để tự tạo, rồi tải ảnh cho từng ô. <b>Chưa có ai cài thử lên máy Honor thật để xác nhận chạy đúng.</b></div>
       <button class="btn small" id="enableOnetakeBtn">Bật hiệu ứng chuyển cảnh mượt (onetake)</button>
     </div>`) +
     (hasVariants ? `<div class="field" style="max-width:260px;margin-bottom:14px">
