@@ -674,9 +674,19 @@ let pkgTextEdits = {};
 let systemuiPkgPath = null, systemuiColorFiles = [], systemuiTintColor = "";
 let controlTileBgPath = null, controlMaskPath = null;
 // Các tên màu đã xác nhận thật là cùng 1 "màu chủ đạo hệ thống" trong file mẫu thật (Dark Emotion EMUI11).
-// qs_tile_tint_on + hnnotification_brightness_icon_color: đã kiểm chứng chạy tốt từ trước.
-// hw_emui_accent + system_accent_color: tên màu chuẩn phổ biến của Android/EMUI, xác nhận trùng giá trị trong file mẫu thật — MỚI thêm, anh nhớ kiểm tra kỹ trên máy trước khi tin tưởng hoàn toàn.
-const SYSTEMUI_SYNC_KEYS = ["qs_tile_tint_on", "hnnotification_brightness_icon_color", "hw_emui_accent", "system_accent_color"];
+// qs_tile_tint_on + hnnotification_brightness_icon_color: đã kiểm chứng chạy tốt từ trước, GIỮ NGUYÊN.
+// 21 mã còn lại: tra được thêm sau này bằng cách quét toàn bộ file theme.xml thật, tìm mọi mã có
+// CÙNG GIÁ TRỊ HEX với mã màu chủ đạo thật của theme mẫu — tăng từ 4 lên 23 mã, chỉnh 1 lần đổi hết.
+const SYSTEMUI_SYNC_KEYS = [
+  "qs_tile_tint_on", "hnnotification_brightness_icon_color",
+  "mw_divide_bg", "ic_public_send_rcs_color", "ic_public_send_color", "notification_manager_tip_color",
+  "noncurrent_user_border_color", "ripple_drawable_dark_color", "qs_tile_tint_opening",
+  "notification_guts_button_text_color", "volume_image_color", "status_bar_brightness_image_color",
+  "brightness_text_color", "systemui_expand_traffic_text_color", "notification_button_pressed_bg_color",
+  "emui_control_highlight", "quick_settings_footer_text", "hw_emui_accent", "accent_material_dark",
+  "material_grey_900", "float_tips_sub_txt_color", "float_tips_txt_color", "text_app_item_color",
+  "system_accent_color",
+];
 let aodPkgPath = null, aodThemeXmlPath = null, aodThemeXmlRaw = "", aodFields = {};
 let aodDigitBgPaths = [];
 let customFontFile = null, customFontDisplayName = "";
@@ -1984,6 +1994,7 @@ async function renderFingerprintTab() {
         <button class="btn small" id="fpReplaceBtn">Thay bằng ảnh khác</button>
         <input type="file" id="fpReplaceInput" accept="image/*,.svg" style="display:none">
         <button class="btn small" id="fpAiBtn" style="margin-left:6px">Tạo bằng AI</button>
+        <button class="btn small" id="fpBgRemoveBtn" style="margin-left:6px">Xoá nền</button>
       </div>
     </div>
     <div class="hint" style="margin-top:8px">Chọn ảnh bất kỳ (vuông hay không đều được, JPG/PNG/WebP...) — tool tự cắt vuông giữa ảnh rồi đóng gói lại thành file .svg hợp lệ. Lưu ý thật: đây là <b>nhúng ảnh vào khung SVG</b>, không phải vẽ lại thành đường nét vector — nếu ảnh gốc mờ/nhỏ thì phóng to vẫn mờ như ảnh gốc.</div>`;
@@ -2027,6 +2038,24 @@ async function renderFingerprintTab() {
       e.target.value = "";
     });
     document.getElementById("fpAiBtn").addEventListener("click", () => openAiOverlay("fp-icon", null, null));
+    document.getElementById("fpBgRemoveBtn").addEventListener("click", async () => {
+      let src = null;
+      try {
+        if (fpIconReplacement) {
+          src = await blobToDataURL(fpIconReplacement);
+        } else {
+          const text = await mainZip.files[fpIconPath].async("text");
+          src = await svgTextToPngDataUrl(text, 512);
+        }
+      } catch (e) {}
+      if (!src) { toast("Không đọc được ảnh vân tay hiện tại.", "err"); return; }
+      const blob = await removeBackgroundFromDataUrl(src);
+      fpIconReplacement = await rasterToSquareSvgFile(new File([blob], "fingerprint.png", { type: "image/png" }), 512);
+      document.getElementById("fpThumb").innerHTML = `<img src="${await blobToDataURL(fpIconReplacement)}">`;
+      document.getElementById("fpStatus").textContent = "Đã chọn ảnh mới — nhớ bấm Xuất file theme";
+      document.getElementById("fpStatus").className = "status changed";
+      toast("Đã xoá nền icon vân tay — kiểm tra lại, có thể cần thử lại nếu nền không đồng màu", "ok");
+    });
   }
 }
 
@@ -2058,6 +2087,7 @@ function renderIconsTab() {
       <button class="btn small" id="openBatchAiBtn">AI thiết kế lại hàng loạt</button>
       <button class="btn small" id="openFilterBtn">Bộ lọc phong cách</button>
       <button class="btn small" id="openRoundBatchBtn">Bo tròn hàng loạt</button>
+      <button class="btn small" id="revertAllBtn" style="grid-column:1/-1">↺ Khôi phục TẤT CẢ icon trong gói này về ảnh gốc</button>
     </div>
     <div id="selectModeBar" style="display:none"></div>
     <div id="addIconForm" style="display:none" class="card" style="margin-bottom:14px">
@@ -2149,6 +2179,14 @@ function renderIconsTab() {
   });
   document.getElementById("openFilterBtn").addEventListener("click", openFilterPanel);
   document.getElementById("openRoundBatchBtn").addEventListener("click", openRoundBatchPanel);
+  document.getElementById("revertAllBtn").addEventListener("click", () => {
+    if (!confirm(`Khôi phục TẤT CẢ icon trong gói "${pkg.label}" về đúng ảnh gốc trong theme? Mọi chỉnh sửa (đổi màu, bộ lọc, AI, xoá...) trên gói này sẽ mất hết.`)) return;
+    pushUndoSnapshot();
+    iconReplacements[currentPkgPath] = {};
+    pkgDeleted[currentPkgPath] = new Set();
+    toast(`Đã khôi phục toàn bộ "${pkg.label}" về ảnh gốc trong theme`, "ok");
+    renderIconGrid(document.getElementById("iconSearch") ? document.getElementById("iconSearch").value.trim().toLowerCase() : "");
+  });
   renderIconGrid("");
 }
 
@@ -4259,7 +4297,8 @@ function renderSystemTab() {
 
   if (systemuiPkgPath) {
     html += `<div class="card"><h3>Màu trung tâm điều khiển + thanh trạng thái</h3>
-      <div class="card-hint">Màu các ô bật/tắt (Wi-Fi, Bluetooth...) khi đang BẬT, màu icon độ sáng trong khung thông báo, và màu chủ đạo hệ thống (ảnh hưởng thanh trạng thái) — các chỗ này dùng chung 1 màu trong theme gốc, đổi 1 lần là đổi hết (tìm thấy ${systemuiColorFiles.length} file cấu hình cần đồng bộ).</div>
+      <div class="card-hint">Màu các ô bật/tắt (Wi-Fi, Bluetooth...) khi đang BẬT, màu icon độ sáng, chữ trong khung thông báo, viền avatar, và nhiều mã màu chủ đạo hệ thống khác — <b>${SYSTEMUI_SYNC_KEYS.length} mã màu</b> dùng chung giá trị trong theme gốc, đổi 1 lần là đổi hết (tìm thấy ${systemuiColorFiles.length} file cấu hình cần đồng bộ).</div>
+      <div class="hint" style="margin-top:2px">Vừa mở rộng từ 4 lên ${SYSTEMUI_SYNC_KEYS.length} mã, dựa theo đúng file mẫu thật đã mổ xẻ — <b>chưa có ai cài thử lên máy Honor thật để xác nhận đủ hết ${SYSTEMUI_SYNC_KEYS.length} mã đều đúng chỗ.</b></div>
       <div class="card-hint" style="border-left-color:#e0a800">⚠️ Phần "màu chủ đạo hệ thống" (ảnh hưởng thanh trạng thái) là mới thêm, dựa trên tên màu chuẩn của Android chứ chưa có ai xác nhận trên máy thật — anh nhớ <b>cài thử và kiểm tra kỹ</b> trước khi tin tưởng hoàn toàn.</div>
       <div class="field"><label>Màu khi bật</label>
         <div class="row"><input type="color" id="systemuiColorInput" value="${argbOrRgbToHex6(systemuiTintColor)}"></div>
@@ -4470,7 +4509,11 @@ function renderSystemTab() {
     if (!pkgTextEdits[systemuiPkgPath]) pkgTextEdits[systemuiPkgPath] = {};
     for (const f of systemuiColorFiles) {
       for (const key of SYSTEMUI_SYNC_KEYS) {
-        f.text = f.text.replace(new RegExp(`(${key}[^#]*)#[0-9A-Fa-f]{6,8}`, "g"), (_, pre) => pre + systemuiTintColor);
+        f.text = f.text.replace(new RegExp(`(${key}[^#]*#)([0-9A-Fa-f]{6,8})`, "g"), (m, pre, oldHex) => {
+          const alphaLen = oldHex.length - 6;
+          const alpha = alphaLen > 0 ? oldHex.slice(0, alphaLen) : "";
+          return pre + alpha + systemuiTintColor.replace("#", "");
+        });
       }
       pkgTextEdits[systemuiPkgPath][f.path] = f.text;
     }
@@ -5160,7 +5203,11 @@ async function importColorSettings(e) {
       if (!pkgTextEdits[systemuiPkgPath]) pkgTextEdits[systemuiPkgPath] = {};
       for (const f of systemuiColorFiles) {
         for (const key of SYSTEMUI_SYNC_KEYS) {
-          f.text = f.text.replace(new RegExp(`(${key}[^#]*)#[0-9A-Fa-f]{6,8}`, "g"), (_, pre) => pre + systemuiTintColor);
+          f.text = f.text.replace(new RegExp(`(${key}[^#]*#)([0-9A-Fa-f]{6,8})`, "g"), (m, pre, oldHex) => {
+            const alphaLen = oldHex.length - 6;
+            const alpha = alphaLen > 0 ? oldHex.slice(0, alphaLen) : "";
+            return pre + alpha + systemuiTintColor.replace("#", "");
+          });
         }
         pkgTextEdits[systemuiPkgPath][f.path] = f.text;
       }
