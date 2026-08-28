@@ -1387,6 +1387,188 @@ const WALLPAPER_LABELS = {
   "fullAod_live_wallpaper.jpg": "Hình cho Always On Display",
   "video_live_wallpaper.mp4": "Video hình nền động (màn khoá)",
 };
+// Mau that lay tu 1 file theme.xml Trung tam dieu khien da mo xe thanh cong (gioi han: 155 dong, gan)
+// Dung de "tu tao moi" cho theme khong co san goi nay - GIU NGUYEN toan bo mau khac (xam/trang/canh bao...),
+// CHI thay doi dung 21 ma mau da xac nhan la mau chu dao that trong file goc.
+const SEED_SYSTEMUI_THEME_XML = `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+ 
+<color name="mw_divide_bg">#ffcc00</color>
+<color name="ic_public_send_color">#000001</color>
+<color name="docked_divider_background">#000001</color>
+<color name="docked_divider_background_pressed">#3e3e3e</color>
+ 
+<color name="ic_public_send_rcs_color">#ffcc00</color>
+  
+<color name="ic_public_send_color">#ffcc00</color>   
+ 
+<color name="notification_manager_tip_color">#ffcc00</color>
+<color name="noncurrent_user_border_color">#ffcc00</color>
+ 
+<color name="ripple_drawable_dark_color">#80ffcc00</color>
+ 
+<color name="notification_header_clock_text_color">#ECECEC</color>
+ 
+<color name="qs_customize_title_divider_backgroundcolor">#00ffffff</color>
+  
+<color name="qs_customize_background_color1">#CC010105</color>
+ 
+<color name="navigation_bar_icon_color">#808080</color>
+ 
+<color name="qs_tile_tint_opening">#66ffcc00</color>
+<color name="qs_tile_tint_off">#B0B0B0</color>
+<color name="qs_tile_tint_disable">#adadad</color>
+
+     	<color name="notification_material_background_color">#000001</color>
+ 
+<color name="recent_task_header_background_color">#ffffff</color>
+ 
+<color name="notification_guts_button_text_color">#ffcc00</color>
+ 
+<color name="volume_image_color">#ffcc00</color>
+ 
+<color name="status_bar_brightness_image_color">#ffcc00</color>
+ 
+<color name="brightness_text_color">#ffcc00</color>
+ 
+<color name="systemui_expand_traffic_text_color">#ffcc00</color>
+ 
+<color name="notification_button_pressed_bg_color">#ffcc00</color>
+ 
+<color name="qs_tile_tint_on">#ff111111</color>
+ 
+<color name="volume_unfocus">#808080</color>ffcc00
+ 
+<color name="notification_background_color_without_alpha">#cc000001</color>
+ 
+<color name="volume_line_color">#00000000</color>
+ 
+<color name="emui_appbar_icon">#FFEEEEEE</color>
+<color name="emui_appbar_icon_pressed">#FFEEEEEE</color>
+ 
+<color name="emui_primary">#f9f9f9</color>
+ 
+<color name="emui_text_primary">#f9f9f9</color>
+ 
+<color name="emui_control_highlight">#ffcc00</color>
+ 
+<color name="emui_secondary">#80000000</color>
+ 
+<color name="systemui_expand_traffic_warning_text_color">#ff1440</color>
+<color name="notification_material_background_dimmed_color">#00000000</color> 
+<color name="wallpaper_blur_default_mask">#CC000001</color> 
+ 
+<color name="system_bar_background_transparent">#00000000</color>  
+ <color name="window_blur_view_mask">#00000000</color> 
+ <color name="volume_background_color">#CC010105</color> 
+<color name="volume_background_lower_color">#CC010105</color>
+<color name="volume_progress_back_color">#ff606060</color> 
+add 
+<color name="notification_guts_icon_tint">#8a000000</color>
+<color name="notification_guts_button_text_color">#ff005bba</color>
+<color name="attr_colorprimary_highlight">#ffff1956</color>
+<color name="notification_guts_radio_text_color">#ffff1956</color>
+<color name="quick_settings_footer_text">#ffffcc00</color>
+<color name="emui_list_summary_default">#ff969696</color>
+<color name="secondary_text_disabled_material_light">#ffacacac</color>
+<color name="hw_emui_accent">#ffffcc00</color>
+<color name="recent_dock_text_color">#ffacacac</color>
+<color name="recent_panel_music_image_color">#ffacacac</color>
+<color name="accent_material_dark">#ffffcc00</color>
+<color name="notification_guts_disabled_slider_color">#ff909090</color>
+<color name="systemui_expand_traffic_text_color">#ffffcc00</color>
+<color name="float_tips_sub_txt_color">#ffffcc00</color>
+<color name="textColorSecondary">#99ffffff</color>
+<color name="material_grey_900">#ffffcc00</color>
+<color name="notification_guts_radio_unchecked_text_color">#80ffffff</color>
+<color name="emui_text_dark">#ff969696</color>
+<color name="float_tips_txt_color">#ffffcc00</color>
+<color name="background_floating_material_dark">#ff000001</color>
+<color name="window_blur_view_mask">#00000000</color>
+<color name="text_app_item_color">#ffffcc00</color>
+<color name="qs_tile_tint_text">#ffff1956</color>
+<color name="highlighted_text_material_dark">#ff01baba</color>
+<color name="primary_text_disabled_material_light">#ff969696</color>
+<color name="system_accent_color">#ffffcc00</color>
+<color name="primary_text_dark_disabled">#ff969696</color>
+<color name="black">#ff969696</color>
+<color name="abc_primary_text_material_light">#ff969696</color>
+<color name="highlighted_text_material_light">#ff009688</color>
+<color name="notificaiton_managet_btn_text_color">#ff969696</color>
+<color name="attr_textcolorsecondary_color">#ff969696</color>
+<color name="abc_secondary_text_material_dark">#ff009688</color>
+<color name="primary_activated_text_color">#ff009688</color>
+<color name="attr_textcolortertiary_color">#ff009688</color>
+<color name="primary_text_default_material_light">#ff009688</color>
+<color name="notification_header_clock_text_color">#ff009688</color>
+<color name="systemui_statusbar_text_color">#ff009688</color>
+<color name="notification_primary_text_color">#ff009688</color>
+<color name="notification_material_background_dark_color">#ff181818</color>
+<color name="bright_foreground_disabled_material_light">#80ffffff</color>
+<color name="emui_summary_text_dark_disabled">#ff969696</color>
+<color name="fill_light_text_color">#ff909090</color>
+<color name="magazine_title_color_black">#ff969696</color>
+<color name="secondary_text_default_material_dark">#ffededed</color>
+
+ <color name="notification_guts_radio_unchecked_text_color">#80f1f1f1</color>
+    <color name="primary_text_dark_disabled">#33f1f1f1</color>
+    <color name="primary_text_default_material_light">#def1f1f1</color>
+    <color name="primary_text_disabled_material_light">#39f1f1f1</color>
+    <color name="recents_task_bar_dark_icon_color">#99f1f1f1</color>
+    <color name="recents_task_bar_dark_text_color">#ccf1f1f1</color>
+    <color name="remote_input_hint">#99f1f1f1</color>
+    <color name="remote_input_text">#e6f1f1f1</color>
+    <color name="secondary_text_default_material_light">#8af1f1f1</color>
+    <color name="secondary_text_disabled_material_light">#24f1f1f1</color>
+    <color name="textColorPrimary">#e6f1f1f1</color>
+    <color name="textColorSecondary">#99f1f1f1</color>
+    <color name="text_app_item_color">#e5f1f1f1</color>
+    <color name="text_tips_color">#e6f1f1f1</color>
+    <color name="transparent_black">#b3f1f1f1</color>
+    <color name="usb_text_color">#a6f1f1f1</color>
+	<color name="notification_sub_text_color">#757575</color>
+    <color name="primary_notification">#ff757575</color>
+    <color name="bright_foreground_disabled_material_light">#80ffffff</color>
+    <color name="disabled_text_color">#66ffffff</color>
+    <color name="emui_list_primary_default">#d8ffffff</color>
+    <color name="emui_primary_text">#ffffffff</color>
+    <color name="emui_primary_text_dark_disabled">#4cffffff</color>
+    <color name="magazine_channel_content_backgound">#99ffffff</color>
+    <color name="magazine_clock_color_black">#ffffffff</color>
+    <color name="magazine_divider_color_black">#ffffffff</color>
+    <color name="magazine_subscription_color">#ffffffff</color>
+    <color name="magazine_subscription_content_color">#99ffffff</color>
+    <color name="magazine_title_color_black">#ffffffff</color>
+    <color name="magazine_update_color">#99ffffff</color>
+	
+	<color name="qs_panel_background">#000001</color>
+  <color name="qs_customize_content_backgroundcolor">#000001</color>
+  <color name="qs_customize_background_color1">#000001</color>
+</resources>
+`;
+const SYSTEMUI_ACCENT_KEYS = [
+  "mw_divide_bg", "ic_public_send_rcs_color", "ic_public_send_color", "notification_manager_tip_color",
+  "noncurrent_user_border_color", "ripple_drawable_dark_color", "qs_tile_tint_opening",
+  "notification_guts_button_text_color", "volume_image_color", "status_bar_brightness_image_color",
+  "brightness_text_color", "systemui_expand_traffic_text_color", "notification_button_pressed_bg_color",
+  "emui_control_highlight", "quick_settings_footer_text", "hw_emui_accent", "accent_material_dark",
+  "material_grey_900", "float_tips_sub_txt_color", "float_tips_txt_color", "text_app_item_color",
+  "system_accent_color",
+];
+function synthesizeSystemuiThemeXml(accentHex6) {
+  // accentHex6 dang "#rrggbb". Tung khoa giu dung so ky tu alpha da co trong file goc (00/66/80/ff hoac khong co).
+  const hex6 = accentHex6.replace("#", "").toLowerCase();
+  let xml = SEED_SYSTEMUI_THEME_XML;
+  for (const key of SYSTEMUI_ACCENT_KEYS) {
+    const re = new RegExp(`(<color name="${key}">#)([0-9A-Fa-f]{2,8})(</color>)`);
+    xml = xml.replace(re, (m, pre, oldVal) => {
+      const alphaLen = oldVal.length - 6; // 0, 2, hoac vay du 8 ky tu thi alpha dai 2
+      const alpha = alphaLen > 0 ? oldVal.slice(0, alphaLen) : "";
+      return pre + alpha + hex6 + m.slice(m.length - 8); // giu nguyen "</color>"
+    });
+  }
+  return xml;
+}
 const CAROUSEL_PERIOD_LABELS = { day: "☀️ Ngày", dusk: "🌇 Hoàng hôn", night: "🌙 Đêm" }; // van dung cho onetake AOD (that su co 3 anh khac nhau, khong gop duoc)
 const CAROUSEL_SIMPLE_ITEMS = [
   { id: "home", label: "Màn hình chính", hasLightDark: true, keyLight: "home_light", keyDark: "home_dark" },
@@ -4115,7 +4297,15 @@ function renderSystemTab() {
       <button class="btn primary" id="syncShapeApplyBtn">Áp dụng cho cả 2</button>
     </div>` : ""}`;
   } else {
-    html += `<div class="card"><h3>Màu trung tâm điều khiển</h3><div class="empty-state">Theme này không có file cấu hình màu trung tâm điều khiển (hoặc chưa mở gói "Trung tâm điều khiển" chứa nó).</div></div>`;
+    html += `<div class="card">
+      <h3>Màu trung tâm điều khiển</h3>
+      <div class="empty-state">Theme này không có file cấu hình màu trung tâm điều khiển (hoặc chưa mở gói "Trung tâm điều khiển" chứa nó).</div>
+      <div class="card-hint" style="margin-top:10px">Có thể tự tạo mới — dựa theo đúng cấu trúc file thật đã mổ xẻ từ 1 theme mẫu (21 mã màu chủ đạo, giữ nguyên hàng trăm mã màu hệ thống khác). <b>Chưa có ai cài thử lên máy Honor thật.</b></div>
+      <div class="field" style="max-width:220px;margin-top:6px"><label>Chọn màu chủ đạo</label>
+        <input type="color" id="synthSystemuiColor" value="#e8622f">
+      </div>
+      <button class="btn primary" id="synthSystemuiBtn" style="margin-top:6px">Tự tạo mới Trung tâm điều khiển</button>
+    </div>`;
   }
 
   if (aodPkgPath) {
@@ -4195,6 +4385,21 @@ function renderSystemTab() {
   }
 
   el.innerHTML = html;
+
+  const synthSystemuiBtn = document.getElementById("synthSystemuiBtn");
+  if (synthSystemuiBtn) synthSystemuiBtn.addEventListener("click", async () => {
+    pushUndoSnapshot();
+    const color = document.getElementById("synthSystemuiColor").value;
+    const xml = synthesizeSystemuiThemeXml(color);
+    const newZip = new JSZip();
+    newZip.file("theme.xml", xml);
+    const pkgPath = "com.android.systemui";
+    nestedPackages[pkgPath] = { zip: newZip, names: [], allNames: ["theme.xml"], label: "Trung tâm điều khiển", isFromDonor: true };
+    await detectSystemuiColorInPackage(pkgPath, nestedPackages[pkgPath]);
+    toast("Đã tự tạo mới Trung tâm điều khiển — nhớ bấm Xuất file theme", "ok");
+    logMerge(`Tự tạo mới: Trung tâm điều khiển (màu ${color})`);
+    renderSystemTab();
+  });
 
   if (Object.keys(onetakeFiles).length) {
     for (const period of Object.keys(onetakeFiles)) {
