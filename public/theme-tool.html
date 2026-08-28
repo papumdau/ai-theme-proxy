@@ -967,6 +967,27 @@ async function checkAndOfferAutosaveRestore() {
   });
 }
 
+let contactsBgInfo = null; // { pkgPath, fileName, label } - anh lon nhat trong goi Danh ba, nghi la nen trang tri
+let mmsBgInfo = null;      // tuong tu, cho goi Tin nhan
+async function detectAppBgFile(pkgPath, pkg) {
+  // Do file PNG lon nhat trong goi (theo dung luong NEN, khong phai dung luong that) co ten dinh "bg"/"background"
+  // - cach nay hop ly vi anh minh hoa that (nhu hinh mat trang/co gai) nen ra dung luong lon hon han
+  // mot khoi mau don gian hay hoa tiet lap lai nho, du ca hai deu la file .9.png co the gian ra.
+  let best = null, bestSize = 0;
+  for (const name of pkg.allNames) {
+    if (!/\.(png)$/i.test(name)) continue;
+    if (!/bg|background/i.test(name)) continue;
+    try {
+      const meta = pkg.zip.files[name];
+      if (!meta) continue;
+      // _data.uncompressedSize co san tren object file cua JSZip, doc truc tiep khong can giai nen ca noi dung
+      const size = meta._data ? meta._data.uncompressedSize : 0;
+      if (size > bestSize) { bestSize = size; best = name; }
+    } catch (e) { /* bo qua */ }
+  }
+  return best ? { pkgPath, fileName: best, sizeBytes: bestSize } : null;
+}
+
 async function detectSystemuiColorInPackage(p, pkg) {
   const colorFiles = pkg.allNames.filter(n => /(^|\/)theme\.xml$/i.test(n));
   const foundFiles = [];
@@ -1101,6 +1122,7 @@ async function handleFile(file) {
   controlTileBgPath = null; controlMaskPath = null;
   aodPkgPath = null; aodThemeXmlPath = null; aodThemeXmlRaw = ""; aodFields = {};
   aodDigitBgPaths = [];
+  contactsBgInfo = null; mmsBgInfo = null;
   pkgTextEdits = {};
   customFontFile = null; customFontDisplayName = "";
 
@@ -1111,6 +1133,12 @@ async function handleFile(file) {
     }
     if (pkg.label === "Màn hình luôn bật (AOD)" && !aodPkgPath) {
       await detectAodConfigInPackage(p, pkg);
+    }
+    if (pkg.label === "Danh bạ" && !contactsBgInfo) {
+      contactsBgInfo = await detectAppBgFile(p, pkg);
+    }
+    if (pkg.label === "Tin nhắn" && !mmsBgInfo) {
+      mmsBgInfo = await detectAppBgFile(p, pkg);
     }
   }
 
@@ -1886,8 +1914,67 @@ function renderLockTab() {
     html += '<div class="card"><h3>Hiệu ứng lúc vuốt mở khoá</h3><div class="empty-state">Theme này không có file cấu hình hiệu ứng mở khoá.</div></div>';
   }
 
+  if (contactsBgInfo) {
+    html += `<div class="card">
+      <h3>Hình nền phía sau Danh bạ</h3>
+      <div class="card-hint">Ảnh trang trí hiện phía sau danh sách liên hệ (tự dò ra file lớn nhất trong gói "Danh bạ" — có thể không đúng 100% nếu theme có nhiều ảnh lớn, kiểm tra kỹ trên máy thật).</div>
+      <div class="wallpaper-item">
+        <div class="wallpaper-thumb" id="contactsBgThumb"></div>
+        <div class="wallpaper-info"><div class="name">${contactsBgInfo.fileName.split("/").pop()}</div><div class="path">${contactsBgInfo.fileName}</div></div>
+      </div>
+      <div class="row" style="gap:8px;margin-top:8px">
+        <button class="btn small" id="contactsBgReplaceBtn">Thay ảnh</button>
+        <input type="file" id="contactsBgInput" accept="image/*" style="display:none">
+      </div>
+    </div>`;
+  }
+  if (mmsBgInfo) {
+    html += `<div class="card">
+      <h3>Hình nền phía sau Tin nhắn</h3>
+      <div class="card-hint">Ảnh trang trí hiện phía sau danh sách tin nhắn (tự dò ra file lớn nhất trong gói "Tin nhắn" — kiểm tra kỹ trên máy thật).</div>
+      <div class="wallpaper-item">
+        <div class="wallpaper-thumb" id="mmsBgThumb"></div>
+        <div class="wallpaper-info"><div class="name">${mmsBgInfo.fileName.split("/").pop()}</div><div class="path">${mmsBgInfo.fileName}</div></div>
+      </div>
+      <div class="row" style="gap:8px;margin-top:8px">
+        <button class="btn small" id="mmsBgReplaceBtn">Thay ảnh</button>
+        <input type="file" id="mmsBgInput" accept="image/*" style="display:none">
+      </div>
+    </div>`;
+  }
+  if (!contactsBgInfo || !mmsBgInfo) {
+    const missing = [!contactsBgInfo && "Danh bạ", !mmsBgInfo && "Tin nhắn"].filter(Boolean).join(" / ");
+    html += `<div class="card"><h3>Hình nền phía sau ${missing}</h3><div class="empty-state">Theme này chưa có gói ${missing} — ghép từ theme khác vào ở tab Icon ứng dụng trước (chọn đúng gói "${missing}").</div></div>`;
+  }
+
   el.innerHTML = html;
   updateMiniLockPreview();
+
+  async function wireAppBgCard(info, thumbId, btnId, inputId) {
+    if (!info) return;
+    const pkg = nestedPackages[info.pkgPath];
+    const repl = iconReplacements[info.pkgPath] || {};
+    const thumbEl = document.getElementById(thumbId);
+    try {
+      const src = repl[info.fileName] ? await blobToDataURL(repl[info.fileName]) : await safeDataUrlFromZipEntry(pkg.zip, info.fileName);
+      if (src && thumbEl) thumbEl.innerHTML = `<img src="${src}">`;
+    } catch (e) { /* bo qua, de trong */ }
+    const btn = document.getElementById(btnId);
+    const input = document.getElementById(inputId);
+    if (btn && input) {
+      btn.addEventListener("click", () => input.click());
+      input.addEventListener("change", async (e) => {
+        if (!e.target.files.length) return;
+        pushUndoSnapshot();
+        if (!iconReplacements[info.pkgPath]) iconReplacements[info.pkgPath] = {};
+        iconReplacements[info.pkgPath][info.fileName] = e.target.files[0];
+        toast("Đã đổi hình nền — nhớ bấm Xuất file theme", "ok");
+        renderWallpaperTab();
+      });
+    }
+  }
+  wireAppBgCard(contactsBgInfo, "contactsBgThumb", "contactsBgReplaceBtn", "contactsBgInput");
+  wireAppBgCard(mmsBgInfo, "mmsBgThumb", "mmsBgReplaceBtn", "mmsBgInput");
   if (refLockPhotoUrl) {
     document.getElementById("miniLockPreview").style.backgroundImage = `url(${refLockPhotoUrl})`;
   } else {
@@ -2446,6 +2533,14 @@ async function handleDonorFile(e) {
       if (nestedPackages[p].label === "Màn hình luôn bật (AOD)") {
         await detectAodConfigInPackage(p, nestedPackages[p]);
         if (document.getElementById("panel-system")) renderSystemTab();
+      }
+      if (nestedPackages[p].label === "Danh bạ") {
+        contactsBgInfo = await detectAppBgFile(p, nestedPackages[p]);
+        if (document.getElementById("panel-wallpaper")) renderWallpaperTab();
+      }
+      if (nestedPackages[p].label === "Tin nhắn") {
+        mmsBgInfo = await detectAppBgFile(p, nestedPackages[p]);
+        if (document.getElementById("panel-wallpaper")) renderWallpaperTab();
       }
       toast(`Đã ${wasAlready ? "thay thế bằng" : "ghép"} "${donorNestedPackages[p].label}" — nhớ bấm Xuất file theme`, "ok");
       logMerge(`${wasAlready ? "Thay thế" : "Ghép"} gói: ${donorNestedPackages[p].label}`);
