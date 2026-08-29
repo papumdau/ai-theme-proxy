@@ -748,6 +748,12 @@ let unlockStyle = "";
 
 let fpIconPath = null;
 let fpIconReplacement = null;
+// Hoat anh mo khoa van tay (fingerprint_anim/) - thu muc THAT nam thang trong file theme (giong unlock/lockscreen)
+// fpAnimXmlPath/fpAnimXmlRaw da co san tu truoc (chi doc de giu nguyen) - gio dung them de PHAN TICH va CHO SUA.
+let fpAnimFrameNames = [];      // ["001.png", "002.png", ...] dung nguyen thu tu that trong fptheme.xml
+let fpAnimFps = 30;
+let fpAnimFolder = "";          // vd "fingerprint_anim/res/light/"
+let fpAnimReplacementFrames = null; // mang File/Blob thay the theo dung thu tu fpAnimFrameNames, null = chua doi
 let fpAnimXmlPath = null;
 let fpAnimXmlRaw = "";
 
@@ -1102,6 +1108,11 @@ async function handleFile(file) {
   }
   if (fpAnimXmlPath) {
     fpAnimXmlRaw = await mainZip.files[fpAnimXmlPath].async("text");
+    const rm = fpAnimXmlRaw.match(/<resource>"?([^"<]*)"?<\/resource>/);
+    fpAnimFrameNames = rm ? rm[1].split(",").map(s => s.trim()).filter(Boolean) : [];
+    const fpsM = fpAnimXmlRaw.match(/<lightfps>(\d+)<\/lightfps>/);
+    fpAnimFps = fpsM ? parseInt(fpsM[1], 10) : 30;
+    fpAnimFolder = fpAnimXmlPath.replace(/fptheme\.xml$/, "") + "res/light/";
   }
 
   for (const p of paths) {
@@ -1123,6 +1134,7 @@ async function handleFile(file) {
   aodPkgPath = null; aodThemeXmlPath = null; aodThemeXmlRaw = ""; aodFields = {};
   aodDigitBgPaths = [];
   contactsBgInfo = null; mmsBgInfo = null;
+  fpAnimFrameNames = []; fpAnimFps = 30; fpAnimFolder = ""; fpAnimReplacementFrames = null;
   pkgTextEdits = {};
   customFontFile = null; customFontDisplayName = "";
 
@@ -2130,8 +2142,25 @@ async function renderFingerprintTab() {
   } else {
     html += '<div class="empty-state">Theme này không có icon vân tay riêng.</div>';
   }
-  if (fpAnimXmlPath) {
-    html += `<div class="hint" style="margin-top:14px">Có file hoạt hình vân tay đi kèm (${fpAnimXmlPath}) — công cụ này không chỉnh phần đó, giữ nguyên khi xuất file.</div>`;
+  if (fpAnimXmlPath && fpAnimFrameNames.length) {
+    const isAnimChanged = !!fpAnimReplacementFrames;
+    html += `<div class="card" style="margin-top:14px">
+      <h3>Hoạt ảnh mở khoá vân tay</h3>
+      <div class="card-hint">Theme này có sẵn hoạt ảnh thật — <b>${fpAnimFrameNames.length} khung hình</b>, chạy ${fpAnimFps} khung/giây. Máy tự lật nhanh liên tiếp các khung này khi chạm vân tay, không phải video.</div>
+      <div class="status ${isAnimChanged ? "changed" : ""}" style="margin-bottom:8px">${isAnimChanged ? "Đã chọn bộ khung mới — nhớ bấm Xuất file theme" : "Đang dùng bộ khung gốc trong theme"}</div>
+      <div id="fpAnimFilmstrip" style="display:flex;gap:6px;overflow-x:auto;padding:4px 0"></div>
+      <div class="field" style="margin-top:10px"><label>Tốc độ (khung hình/giây)</label>
+        <input type="number" id="fpAnimFpsInput" value="${fpAnimFps}" min="1" max="120" style="max-width:120px">
+      </div>
+      <div class="row" style="gap:8px;margin-top:8px">
+        <button class="btn small" id="fpAnimReplaceBtn">Tải lên bộ khung mới (chọn nhiều ảnh 1 lúc)</button>
+        <input type="file" id="fpAnimReplaceInput" accept="image/*" multiple style="display:none">
+        ${isAnimChanged ? '<button class="btn small" id="fpAnimRevertBtn">↺ Về bộ khung gốc</button>' : ""}
+      </div>
+      <div class="hint" style="margin-top:8px">Chọn ảnh theo <b>đúng thứ tự muốn phát</b> (trình chọn file thường giữ đúng thứ tự đã bấm chọn) — tool tự đặt lại số thứ tự 001, 002... Nên dùng đúng <b>${fpAnimFrameNames.length} ảnh vuông 900×900</b>, nền trong suốt (PNG), để khớp với thời lượng gốc. Số lượng khác đi vẫn chạy được nhưng thời lượng hoạt ảnh sẽ đổi theo.</div>
+    </div>`;
+  } else if (fpAnimXmlPath) {
+    html += `<div class="hint" style="margin-top:14px">Có file hoạt hình vân tay đi kèm (${fpAnimXmlPath}) nhưng không đọc được danh sách khung hình — giữ nguyên khi xuất file, không sửa được.</div>`;
   }
   html += '</div>';
   el.innerHTML = html;
@@ -2184,6 +2213,63 @@ async function renderFingerprintTab() {
       document.getElementById("fpStatus").textContent = "Đã chọn ảnh mới — nhớ bấm Xuất file theme";
       document.getElementById("fpStatus").className = "status changed";
       toast("Đã xoá nền icon vân tay — kiểm tra lại, có thể cần thử lại nếu nền không đồng màu", "ok");
+    });
+  }
+
+  if (fpAnimXmlPath && fpAnimFrameNames.length) {
+    const strip = document.getElementById("fpAnimFilmstrip");
+    if (strip) {
+      const framesToShow = fpAnimReplacementFrames || null;
+      for (let i = 0; i < fpAnimFrameNames.length; i++) {
+        const cell = document.createElement("div");
+        cell.style.cssText = "width:56px;height:56px;flex:0 0 auto;border-radius:8px;overflow:hidden;background:#0003;display:flex;align-items:center;justify-content:center";
+        strip.appendChild(cell);
+        (async () => {
+          try {
+            let src;
+            if (framesToShow && framesToShow[i]) {
+              src = await blobToDataURL(framesToShow[i]);
+            } else {
+              src = await safeDataUrlFromZipEntry(mainZip, fpAnimFolder + fpAnimFrameNames[i]);
+            }
+            if (src) cell.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:contain">`;
+          } catch (e) { /* bo qua khung loi */ }
+        })();
+      }
+    }
+    document.getElementById("fpAnimFpsInput").addEventListener("change", (e) => {
+      const v = parseInt(e.target.value, 10);
+      if (v >= 1 && v <= 120) {
+        fpAnimFps = v;
+        fpAnimXmlRaw = fpAnimXmlRaw.replace(/<lightfps>\d+<\/lightfps>/, `<lightfps>${v}</lightfps>`);
+        if (!pkgTextEdits["__fpanim__"]) pkgTextEdits["__fpanim__"] = {};
+        toast("Đã đổi tốc độ hoạt ảnh — nhớ bấm Xuất file theme", "ok");
+      }
+    });
+    document.getElementById("fpAnimReplaceBtn").addEventListener("click", () => document.getElementById("fpAnimReplaceInput").click());
+    document.getElementById("fpAnimReplaceInput").addEventListener("change", (e) => {
+      if (!e.target.files.length) return;
+      pushUndoSnapshot();
+      const files = Array.from(e.target.files);
+      fpAnimReplacementFrames = files;
+      // So luong khung co the khac so goc - cap nhat lai danh sach ten + ghi lai <resource> cho dung so luong moi
+      const newNames = files.map((_, i) => String(i + 1).padStart(3, "0") + ".png");
+      fpAnimFrameNames = newNames;
+      fpAnimXmlRaw = fpAnimXmlRaw.replace(/<resource>"?[^"<]*"?<\/resource>/, `<resource>"${newNames.join(",")}"</resource>`);
+      toast(`Đã chọn ${files.length} ảnh làm hoạt ảnh mới — nhớ bấm Xuất file theme`, "ok");
+      renderFingerprintTab();
+    });
+    const revertBtn = document.getElementById("fpAnimRevertBtn");
+    if (revertBtn) revertBtn.addEventListener("click", async () => {
+      pushUndoSnapshot();
+      fpAnimReplacementFrames = null;
+      fpAnimXmlRaw = await mainZip.files[fpAnimXmlPath].async("text");
+      const rm = fpAnimXmlRaw.match(/<resource>"?([^"<]*)"?<\/resource>/);
+      fpAnimFrameNames = rm ? rm[1].split(",").map(s => s.trim()).filter(Boolean) : [];
+      const fpsM = fpAnimXmlRaw.match(/<lightfps>(\d+)<\/lightfps>/);
+      fpAnimFps = fpsM ? parseInt(fpsM[1], 10) : 30;
+      toast("Đã về bộ khung gốc trong theme", "ok");
+      renderFingerprintTab();
     });
   }
 }
@@ -5973,6 +6059,11 @@ document.getElementById("exportBtn").addEventListener("click", async () => {
       }
       if (clockJsonPaths.includes(p)) { outZip.file(p, clockJsonRaw); continue; }
       if (p === unlockXmlPath) { outZip.file(p, unlockXmlRaw); continue; }
+      if (p === fpAnimXmlPath) { outZip.file(p, fpAnimXmlRaw); continue; }
+      if (fpAnimReplacementFrames && fpAnimFolder && p.startsWith(fpAnimFolder)) {
+        // Khung hinh CU (thuoc bo goc, khong con trong danh sach ten moi) - bo qua, khong ghi vao file xuat
+        continue;
+      }
       if (p === fpIconPath && fpIconReplacement) {
         const buf = await fpIconReplacement.arrayBuffer();
         outZip.file(p, buf);
@@ -6056,6 +6147,15 @@ document.getElementById("exportBtn").addEventListener("click", async () => {
           const bytes = repl ? await repl.arrayBuffer() : await vpkg.zip.files[rel].async("uint8array");
           outZip.file(fullPath, bytes);
         } catch (e) { /* bo qua file loi */ }
+      }
+    }
+
+    // Hoat anh mo khoa van tay: neu da doi bo khung moi, ghi het cac file MOI vao (ten da danh lai 001,002...)
+    if (fpAnimReplacementFrames && fpAnimFolder) {
+      for (let i = 0; i < fpAnimReplacementFrames.length; i++) {
+        const name = String(i + 1).padStart(3, "0") + ".png";
+        const bytes = await fpAnimReplacementFrames[i].arrayBuffer();
+        outZip.file(fpAnimFolder + name, bytes);
       }
     }
 
