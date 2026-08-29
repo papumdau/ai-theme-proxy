@@ -737,6 +737,7 @@ let donorFpIconPath = null;
 let donorFpAnimXmlPath = null;
 let donorFpAnimFrameCount = 0;
 let donorFpAnimFolder = "";
+let previewFilePaths = []; // ["preview/cover.jpg", "preview/preview_unlock_0.jpg", ...] - anh xem truoc khi chon theme, khong anh huong theme that
 let donorCarouselFiles = {}; // { day: {home_dark: "duong dan trong file donor", ...}, ... }
 let mergedChargingBlobs = null;
 let donorNestedPackages = {};
@@ -1139,6 +1140,7 @@ async function handleFile(file) {
   aodDigitBgPaths = [];
   contactsBgInfo = null; mmsBgInfo = null;
   fpAnimFrameNames = []; fpAnimFps = 30; fpAnimFolder = ""; fpAnimReplacementFrames = null;
+  previewFilePaths = paths.filter(p => p.startsWith("preview/") && !mainZip.files[p].dir && /\.(jpg|jpeg|png)$/i.test(p));
   pkgTextEdits = {};
   customFontFile = null; customFontDisplayName = "";
 
@@ -1980,8 +1982,64 @@ function renderLockTab() {
     html += `<div class="card"><h3>Hình nền phía sau ${missing}</h3><div class="empty-state">Theme này chưa có gói ${missing} — ghép từ theme khác vào ở tab Icon ứng dụng trước (chọn đúng gói "${missing}").</div></div>`;
   }
 
+  if (previewFilePaths.length) {
+    html += `<div class="card">
+      <h3>Ảnh xem trước khi chọn theme (preview)</h3>
+      <div class="card-hint">Đây là ảnh hiện ra ở màn hình "chọn theme trước khi Áp dụng" — <b>không ảnh hưởng gì tới theme thật trên máy</b>, chỉ để người xem hình dung trước. Nếu đã đổi nhiều hình nền/màu mà không cập nhật lại đây, ảnh xem trước sẽ vẫn hiện đúng theme CŨ, gây hiểu lầm.</div>
+      <div class="hint" style="margin-top:4px">Tool tự ghép: hình nền hiện tại + chữ ngày giờ + 3 vòng tròn thông tin đè lên trên — <b>gần đúng, không giống 100% ảnh thật trên máy</b> (font chữ, vị trí có thể hơi khác).</div>
+      <button class="btn small" id="regenPreviewBtn" style="margin-top:8px">Tự động cập nhật lại ${previewFilePaths.length} ảnh xem trước theo hình nền hiện tại</button>
+      <div id="previewFilesGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;margin-top:10px"></div>
+    </div>`;
+  }
+
   el.innerHTML = html;
   updateMiniLockPreview();
+
+  if (previewFilePaths.length) {
+    const grid = document.getElementById("previewFilesGrid");
+    for (const p of previewFilePaths) {
+      const cell = document.createElement("div");
+      cell.style.cssText = "aspect-ratio:9/16;border-radius:8px;overflow:hidden;background:#0003";
+      grid.appendChild(cell);
+      (async () => {
+        try {
+          const repl = iconReplacements["__preview__"] && iconReplacements["__preview__"][p];
+          const src = repl ? await blobToDataURL(repl) : await safeDataUrlFromZipEntry(mainZip, p);
+          if (src) cell.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover">`;
+        } catch (e) { /* bo qua */ }
+      })();
+    }
+    document.getElementById("regenPreviewBtn").addEventListener("click", async () => {
+      const btn = document.getElementById("regenPreviewBtn");
+      btn.disabled = true; btn.textContent = "Đang tạo...";
+      try {
+        pushUndoSnapshot();
+        if (!iconReplacements["__preview__"]) iconReplacements["__preview__"] = {};
+        let homeSrc = wallpaperReplacements["home_wallpaper_0.jpg"]
+          ? await blobToDataURL(wallpaperReplacements["home_wallpaper_0.jpg"])
+          : (wallpaperEntries["home_wallpaper_0.jpg"] ? await safeDataUrlFromZipEntry(mainZip, wallpaperEntries["home_wallpaper_0.jpg"]) : null);
+        let unlockSrc = wallpaperReplacements["unlock_wallpaper_0.jpg"]
+          ? await blobToDataURL(wallpaperReplacements["unlock_wallpaper_0.jpg"])
+          : (wallpaperEntries["unlock_wallpaper_0.jpg"] ? await safeDataUrlFromZipEntry(mainZip, wallpaperEntries["unlock_wallpaper_0.jpg"]) : null);
+        if (!homeSrc && !unlockSrc) { toast("Không tìm thấy hình nền nào trong theme để dùng làm nền preview.", "err"); return; }
+        for (const p of previewFilePaths) {
+          const base = p.split("/").pop().toLowerCase();
+          const useUnlock = /unlock|lock(?!er)/i.test(base) && unlockSrc;
+          const bgSrc = useUnlock ? unlockSrc : (homeSrc || unlockSrc);
+          const buf = await mainZip.files[p].async("uint8array");
+          let w = 1080, h = 1920;
+          try { const dims = await getImageDimsFromBytes(buf); w = dims.w; h = dims.h; } catch (e) {}
+          const blob = await composePreviewImage(bgSrc, w, h);
+          iconReplacements["__preview__"][p] = blob;
+        }
+        toast(`Đã cập nhật ${previewFilePaths.length} ảnh xem trước — nhớ bấm Xuất file theme`, "ok");
+        renderWallpaperTab();
+      } catch (e) {
+        toast("Lỗi khi tạo ảnh xem trước: " + e.message, "err");
+        btn.disabled = false; btn.textContent = "Tự động cập nhật lại ảnh xem trước theo hình nền hiện tại";
+      }
+    });
+  }
 
   async function wireAppBgCard(info, thumbId, btnId, inputId) {
     if (!info) return;
@@ -2325,6 +2383,65 @@ async function renderFingerprintTab() {
       e.target.value = "";
     });
   }
+}
+
+async function getImageDimsFromBytes(buf) {
+  const blob = new Blob([buf]);
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const im = new Image();
+      im.onload = () => resolve(im);
+      im.onerror = reject;
+      im.src = url;
+    });
+    return { w: img.naturalWidth, h: img.naturalHeight };
+  } finally { URL.revokeObjectURL(url); }
+}
+
+async function composePreviewImage(bgDataUrl, w, h) {
+  const bgImg = await new Promise((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = reject;
+    im.src = bgDataUrl;
+  });
+  const canvas = document.createElement("canvas");
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  // Ve nen phu kin ca khung (kieu "cover" - giu ti le, cat bot phan thua)
+  const scale = Math.max(w / bgImg.width, h / bgImg.height);
+  const dw = bgImg.width * scale, dh = bgImg.height * scale;
+  ctx.drawImage(bgImg, (w - dw) / 2, (h - dh) / 2, dw, dh);
+  // Lop toi nhe phia tren de chu de doc hon (giong da so anh preview that)
+  const grad = ctx.createLinearGradient(0, 0, 0, h * 0.4);
+  grad.addColorStop(0, "rgba(0,0,0,0.35)");
+  grad.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = grad; ctx.fillRect(0, 0, w, h * 0.4);
+  // Chu ngay + gio, kieu chung chung giong da so theme that
+  ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(255,255,255,0.92)";
+  ctx.font = `${Math.round(w * 0.032)}px sans-serif`;
+  const now = new Date();
+  const dateStr = `${now.getMonth() + 1} tháng ${now.getDate()}`;
+  ctx.fillText(dateStr, w / 2, h * 0.16);
+  ctx.font = `bold ${Math.round(w * 0.13)}px sans-serif`;
+  ctx.fillText("00:00", w / 2, h * 0.27);
+  // 3 vong tron thong tin (thoi tiet/pin/bo nho) - chi de trang tri cho giong bo cuc that
+  const ringY = h * 0.33, ringR = w * 0.055, gap = w * 0.22;
+  const labels = ["--°", "--%", "-- GB"];
+  for (let i = -1; i <= 1; i++) {
+    const cx = w / 2 + i * gap;
+    ctx.beginPath();
+    ctx.arc(cx, ringY, ringR, 0, 2 * Math.PI);
+    ctx.strokeStyle = "rgba(255,255,255,0.85)";
+    ctx.lineWidth = Math.max(2, w * 0.004);
+    ctx.stroke();
+    ctx.font = `${Math.round(w * 0.022)}px sans-serif`;
+    ctx.fillText(labels[i + 1], cx, ringY + ringR * 0.32);
+  }
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/jpeg", 0.88));
+  return blob;
 }
 
 async function generateEffectFrames(file, count, size, kind) {
@@ -6217,6 +6334,10 @@ document.getElementById("exportBtn").addEventListener("click", async () => {
       if (clockJsonPaths.includes(p)) { outZip.file(p, clockJsonRaw); continue; }
       if (p === unlockXmlPath) { outZip.file(p, unlockXmlRaw); continue; }
       if (p === fpAnimXmlPath) { outZip.file(p, fpAnimXmlRaw); continue; }
+      if (iconReplacements["__preview__"] && iconReplacements["__preview__"][p]) {
+        outZip.file(p, await iconReplacements["__preview__"][p].arrayBuffer());
+        continue;
+      }
       if (fpAnimReplacementFrames && fpAnimFolder && p.startsWith(fpAnimFolder)) {
         // Khung hinh CU (thuoc bo goc, khong con trong danh sach ten moi) - bo qua, khong ghi vao file xuat
         continue;
