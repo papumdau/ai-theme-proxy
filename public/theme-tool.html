@@ -980,6 +980,19 @@ async function checkAndOfferAutosaveRestore() {
 
 let contactsBgInfo = null; // { pkgPath, fileName, label } - anh lon nhat trong goi Danh ba, nghi la nen trang tri
 let mmsBgInfo = null;      // tuong tu, cho goi Tin nhan
+function friendlyLockscreenSubfolderLabel(sub, relEntries) {
+  // Doan ten de hieu cho cac thu muc con hay gap trong unlock/lockscreen/ - dua theo ten thu muc
+  // thuong gap thuc te (tra tu nhieu theme mau) + kiem tra chac hon bang cach nhin vao NOI DUNG ben trong.
+  const lower = sub.toLowerCase();
+  const hasSubStyles = relEntries.some(n => /^time\d+\//.test(n)); // co nhieu "timeN/" ben trong = nhieu KIEU chu so de chon
+  const hasWallJpg = relEntries.filter(n => /^wall_\d+\.jpg$/.test(n)).length;
+  const hasFingerprintFrames = relEntries.some(n => /fingerprint\//i.test(n) && /\.png$/i.test(n));
+  if (hasSubStyles) return `Kiểu chữ số đồng hồ màn khoá (nhiều kiểu để chọn — "${sub}")`;
+  if (hasWallJpg >= 2) return `Hình nền màn khoá — ${hasWallJpg} tấm để chọn ("${sub}")`;
+  if (lower === "res" || hasFingerprintFrames) return `Trang trí + vân tay tương tác màn khoá ("${sub}") — gồm nhiều loại ảnh nhỏ trộn chung, có cả khung vân tay quét (không đổi số lượng file vân tay)`;
+  return "Đồng hồ màn khoá kiểu ảnh — " + sub;
+}
+
 async function detectAppBgFile(pkgPath, pkg) {
   // Do file PNG lon nhat trong goi (theo dung luong NEN, khong phai dung luong that) co ten dinh "bg"/"background"
   // - cach nay hop ly vi anh minh hoa that (nhu hinh mat trang/co gai) nen ra dung luong lon hon han
@@ -1196,7 +1209,7 @@ async function handleFile(file) {
         zip: { files: fakeFiles },
         names: pngRel,
         allNames: relEntries,
-        label: "Đồng hồ màn khoá kiểu ảnh — " + sub,
+        label: friendlyLockscreenSubfolderLabel(sub, relEntries),
         isVirtual: true,
         virtualPrefix: prefix,
       };
@@ -2771,7 +2784,7 @@ async function handleDonorFile(e) {
       for (const rel of relEntries) fakeFiles[rel] = donorZip.files[prefix + rel];
       donorNestedPackages["__virtual__" + prefix] = {
         zip: { files: fakeFiles }, names: pngRel, allNames: relEntries,
-        label: "Đồng hồ màn khoá kiểu ảnh — " + sub, isVirtual: true, virtualPrefix: prefix, sourcePath: "__virtual__" + prefix,
+        label: friendlyLockscreenSubfolderLabel(sub, relEntries), isVirtual: true, virtualPrefix: prefix, sourcePath: "__virtual__" + prefix,
       };
     }
   }
