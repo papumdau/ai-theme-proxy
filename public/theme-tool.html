@@ -734,6 +734,9 @@ let donorChargingFiles = null;
 let donorWallpapers = {};
 let donorFontPath = null;
 let donorFpIconPath = null;
+let donorFpAnimXmlPath = null;
+let donorFpAnimFrameCount = 0;
+let donorFpAnimFolder = "";
 let donorCarouselFiles = {}; // { day: {home_dark: "duong dan trong file donor", ...}, ... }
 let mergedChargingBlobs = null;
 let donorNestedPackages = {};
@@ -747,6 +750,7 @@ let unlockXmlRaw = "";
 let unlockStyle = "";
 
 let fpIconPath = null;
+let fpIconIsSvg = true; // false = file goc la anh raster (png/webp/jpg) - GIU NGUYEN dinh dang khi xuat, khong boc vao SVG
 let fpIconReplacement = null;
 // Hoat anh mo khoa van tay (fingerprint_anim/) - thu muc THAT nam thang trong file theme (giong unlock/lockscreen)
 // fpAnimXmlPath/fpAnimXmlRaw da co san tu truoc (chi doc de giu nguyen) - gio dung them de PHAN TICH va CHO SUA.
@@ -1066,7 +1070,7 @@ async function handleFile(file) {
   iconBlobCache = {};
   clockJsonPaths = [];
   unlockXmlPath = null;
-  fpIconPath = null;
+  fpIconPath = null; fpIconIsSvg = true;
   fpIconReplacement = null;
   fpAnimXmlPath = null;
 
@@ -1087,7 +1091,7 @@ async function handleFile(file) {
     }
     if (base === "keyguard_clock_style.json") clockJsonPaths.push(p);
     if (p.endsWith("unlock/theme.xml") || (p.includes("unlock") && base === "theme.xml")) unlockXmlPath = p;
-    if (p.includes("fingerprint_icon") && base.endsWith(".svg")) fpIconPath = p;
+    if (p.includes("fingerprint_icon") && /\.(svg|png|webp|jpg|jpeg)$/i.test(base)) { fpIconPath = p; fpIconIsSvg = base.toLowerCase().endsWith(".svg"); }
     if (p.includes("fingerprint_anim") && base === "fptheme.xml") fpAnimXmlPath = p;
   }
 
@@ -2183,6 +2187,15 @@ async function renderFingerprintTab() {
         document.getElementById("fpStatus").textContent = "Đã chọn ảnh mới — nhớ bấm Xuất file theme";
         document.getElementById("fpStatus").className = "status changed";
         toast("Đã đổi icon vân tay", "ok");
+      } else if (!fpIconIsSvg) {
+        // File goc la anh raster (png/webp/jpg) - giu nguyen dinh dang, KHONG boc vao SVG
+        openCropOverlay(f, async (croppedBlob) => {
+          fpIconReplacement = new File([croppedBlob], "fingerprint.png", { type: "image/png" });
+          document.getElementById("fpThumb").innerHTML = `<img src="${await blobToDataURL(fpIconReplacement)}">`;
+          document.getElementById("fpStatus").textContent = "Đã chọn ảnh mới — nhớ bấm Xuất file theme";
+          document.getElementById("fpStatus").className = "status changed";
+          toast("Đã đổi icon vân tay", "ok");
+        });
       } else {
         openCropOverlay(f, async (croppedBlob) => {
           toast("Đang đóng gói thành SVG...", "ok");
@@ -2481,7 +2494,17 @@ async function handleDonorFile(e) {
   donorFontPath = null;
   const paths = Object.keys(donorZip.files).filter(p => !donorZip.files[p].dir);
   donorFontPath = paths.find(p => p.toLowerCase().endsWith(".ttf")) || null;
-  donorFpIconPath = paths.find(p => p.includes("fingerprint_icon") && p.toLowerCase().endsWith(".svg")) || null;
+  donorFpIconPath = paths.find(p => p.includes("fingerprint_icon") && /\.(svg|png|webp|jpg|jpeg)$/i.test(p)) || null;
+  donorFpAnimXmlPath = paths.find(p => p.includes("fingerprint_anim") && p.split("/").pop() === "fptheme.xml") || null;
+  donorFpAnimFrameCount = 0; donorFpAnimFolder = "";
+  if (donorFpAnimXmlPath) {
+    try {
+      const xml = await donorZip.files[donorFpAnimXmlPath].async("text");
+      const rm = xml.match(/<resource>"?([^"<]*)"?<\/resource>/);
+      donorFpAnimFrameCount = rm ? rm[1].split(",").map(s => s.trim()).filter(Boolean).length : 0;
+      donorFpAnimFolder = donorFpAnimXmlPath.replace(/fptheme\.xml$/, "") + "res/light/";
+    } catch (e) { /* bo qua */ }
+  }
   donorCarouselFiles = {};
   const donorMetaPath = paths.find(p => p.split("/").pop() === "wallpaper_meta.json");
   if (donorMetaPath) {
@@ -2618,7 +2641,17 @@ async function handleDonorFile(e) {
         <div class="name">Icon vân tay</div>
         <div class="path">${escapeHtml(donorFpIconPath)}</div>
       </div>
-      <button class="btn small" id="mergeFpBtn" ${fpIconPath ? "" : "disabled"}>${fpIconPath ? "Ghép icon này" : "Theme đang mở không có chỗ vân tay"}</button>
+      <button class="btn small" id="mergeFpBtn">${fpIconPath ? "Ghép icon này" : "Thêm mới icon này"}</button>
+    </div>`;
+  }
+  if (donorFpAnimXmlPath) {
+    itemsHtml += `<div class="wallpaper-item">
+      <div class="wallpaper-thumb" id="donorFpAnimThumb"></div>
+      <div class="wallpaper-info">
+        <div class="name">Hoạt ảnh mở khoá vân tay (${donorFpAnimFrameCount} khung)</div>
+        <div class="path">${escapeHtml(donorFpAnimXmlPath)}</div>
+      </div>
+      <button class="btn small" id="mergeFpAnimBtn">${fpAnimXmlPath ? "Thay thế bằng hoạt ảnh này" : "Thêm mới hoạt ảnh này"}</button>
     </div>`;
   }
   if (hasDonorCarousel) {
@@ -2744,20 +2777,67 @@ async function handleDonorFile(e) {
   if (donorFpIconPath) {
     (async () => {
       try {
-        const blob = await donorZip.files[donorFpIconPath].async("text").then(text => svgTextToPngDataUrl(text, 256));
+        let src;
+        if (donorFpIconPath.toLowerCase().endsWith(".svg")) {
+          const text = await donorZip.files[donorFpIconPath].async("text");
+          src = await svgTextToPngDataUrl(text, 256);
+        } else {
+          src = await safeDataUrlFromZipEntry(donorZip, donorFpIconPath);
+        }
         const thumbEl = document.getElementById("donorFpThumb");
-        if (thumbEl && blob) thumbEl.innerHTML = `<img src="${blob}">`;
+        if (thumbEl && src) thumbEl.innerHTML = `<img src="${src}">`;
+      } catch (e) { /* bo qua */ }
+    })();
+  }
+  if (donorFpAnimXmlPath && donorFpAnimFrameCount) {
+    (async () => {
+      try {
+        const firstFrameName = donorFpAnimFolder + "001.png";
+        const src = await safeDataUrlFromZipEntry(donorZip, firstFrameName);
+        const thumbEl = document.getElementById("donorFpAnimThumb");
+        if (thumbEl && src) thumbEl.innerHTML = `<img src="${src}" style="background:#333">`;
       } catch (e) { /* bo qua */ }
     })();
   }
   const mergeFpBtn = document.getElementById("mergeFpBtn");
   if (mergeFpBtn) mergeFpBtn.addEventListener("click", async () => {
-    if (!donorFpIconPath || !fpIconPath) return;
+    if (!donorFpIconPath) return;
+    pushUndoSnapshot();
     const bytes = await donorZip.files[donorFpIconPath].async("uint8array");
-    fpIconReplacement = new File([bytes], "fingerprint_icon.svg", { type: "image/svg+xml" });
+    const isSvg = donorFpIconPath.toLowerCase().endsWith(".svg");
+    // Dung dung ten/dinh dang cua file donor - an toan hon doan ten, tranh ghi sai dinh dang vao duoi file cu.
+    fpIconPath = donorFpIconPath;
+    fpIconIsSvg = isSvg;
+    fpIconReplacement = new File([bytes], donorFpIconPath.split("/").pop(), { type: isSvg ? "image/svg+xml" : "image/png" });
     toast("Đã ghép icon vân tay — nhớ bấm Xuất file theme", "ok");
     logMerge("Icon vân tay");
     mergeFpBtn.textContent = "✓ Đã ghép — bấm lại để ghép lại lần nữa";
+    if (document.getElementById("panel-fingerprint")) renderFingerprintTab();
+  });
+  const mergeFpAnimBtn = document.getElementById("mergeFpAnimBtn");
+  if (mergeFpAnimBtn) mergeFpAnimBtn.addEventListener("click", async () => {
+    if (!donorFpAnimXmlPath) return;
+    pushUndoSnapshot();
+    fpAnimXmlPath = donorFpAnimXmlPath;
+    fpAnimXmlRaw = await donorZip.files[donorFpAnimXmlPath].async("text");
+    const rm = fpAnimXmlRaw.match(/<resource>"?([^"<]*)"?<\/resource>/);
+    fpAnimFrameNames = rm ? rm[1].split(",").map(s => s.trim()).filter(Boolean) : [];
+    const fpsM = fpAnimXmlRaw.match(/<lightfps>(\d+)<\/lightfps>/);
+    fpAnimFps = fpsM ? parseInt(fpsM[1], 10) : 30;
+    fpAnimFolder = donorFpAnimFolder;
+    // Doc san toan bo khung hinh tu donor ngay luc ghep (thay vi doc lai tu donorZip moi lan ve sau,
+    // vi donorZip se bi thay khi nguoi dung mo file donor KHAC de ghep tiep phan nua).
+    const frames = [];
+    for (const name of fpAnimFrameNames) {
+      try {
+        const buf = await donorZip.files[fpAnimFolder + name].async("blob");
+        frames.push(new File([buf], name, { type: "image/png" }));
+      } catch (e) { /* bo qua khung loi */ }
+    }
+    fpAnimReplacementFrames = frames.length ? frames : null;
+    toast(`Đã ghép hoạt ảnh vân tay (${fpAnimFrameNames.length} khung) — nhớ bấm Xuất file theme`, "ok");
+    logMerge(`Hoạt ảnh mở khoá vân tay (${fpAnimFrameNames.length} khung)`);
+    mergeFpAnimBtn.textContent = "✓ Đã ghép — bấm lại để ghép lại lần nữa";
     if (document.getElementById("panel-fingerprint")) renderFingerprintTab();
   });
   const mergeCarouselBtn = document.getElementById("mergeCarouselBtn");
@@ -6157,6 +6237,17 @@ document.getElementById("exportBtn").addEventListener("click", async () => {
         const bytes = await fpAnimReplacementFrames[i].arrayBuffer();
         outZip.file(fpAnimFolder + name, bytes);
       }
+    }
+    // Neu fpIconPath/fpAnimXmlPath la duong dan MOI (ghep tu donor vao theme von KHONG co san tinh nang nay)
+    // thi no se khong nam trong "paths" (danh sach file GOC) - vong lap chinh o tren se KHONG BAO GIO ghi toi.
+    // Phai ghi rieng o day de dam bao khong bi bo sot.
+    if (fpIconPath && !paths.includes(fpIconPath) && fpIconReplacement) {
+      outZip.file(fpIconPath, await fpIconReplacement.arrayBuffer());
+    }
+    if (fpAnimXmlPath && !paths.includes(fpAnimXmlPath)) {
+      outZip.file(fpAnimXmlPath, fpAnimXmlRaw);
+      // Khung hinh (fpAnimReplacementFrames) da duoc khoi FpAnimBtn nap san tu donor ngay luc ghep,
+      // nen khoi ghi file o tren (fpAnimReplacementFrames && fpAnimFolder) da tu lo phan nay roi, khong can gi them.
     }
 
     const existingWpBases = paths.map(p => p.split("/").pop());
