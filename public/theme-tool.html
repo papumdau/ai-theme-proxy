@@ -2162,6 +2162,16 @@ async function renderFingerprintTab() {
         ${isAnimChanged ? '<button class="btn small" id="fpAnimRevertBtn">↺ Về bộ khung gốc</button>' : ""}
       </div>
       <div class="hint" style="margin-top:8px">Chọn ảnh theo <b>đúng thứ tự muốn phát</b> (trình chọn file thường giữ đúng thứ tự đã bấm chọn) — tool tự đặt lại số thứ tự 001, 002... Nên dùng đúng <b>${fpAnimFrameNames.length} ảnh vuông 900×900</b>, nền trong suốt (PNG), để khớp với thời lượng gốc. Số lượng khác đi vẫn chạy được nhưng thời lượng hoạt ảnh sẽ đổi theo.</div>
+      <div class="field" style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
+        <label>✨ Tự tạo hàng loạt bằng cách xoay 1 ảnh (không cần AI, chắc chắn mượt)</label>
+        <div class="hint">Tải lên đúng 1 ảnh (biểu tượng, hoa văn...) — tool tự xoay tròn đủ 360° chia đều thành nhiều khung, ra hiệu ứng xoay mượt như video thật. Không hợp cho hiệu ứng đổi hình dạng phức tạp (như mẫu cánh hoa→pha lê trong ảnh gốc), chỉ hợp hiệu ứng XOAY đơn giản.</div>
+        <div class="row" style="gap:8px;margin-top:6px;align-items:center">
+          <input type="number" id="fpAnimRotateFrameCount" value="${fpAnimFrameNames.length || 24}" min="4" max="60" style="max-width:90px">
+          <span class="hint" style="margin:0">khung</span>
+          <button class="btn small" id="fpAnimRotateBtn">Chọn ảnh & tự xoay</button>
+          <input type="file" id="fpAnimRotateInput" accept="image/*" style="display:none">
+        </div>
+      </div>
     </div>`;
   } else if (fpAnimXmlPath) {
     html += `<div class="hint" style="margin-top:14px">Có file hoạt hình vân tay đi kèm (${fpAnimXmlPath}) nhưng không đọc được danh sách khung hình — giữ nguyên khi xuất file, không sửa được.</div>`;
@@ -2284,7 +2294,57 @@ async function renderFingerprintTab() {
       toast("Đã về bộ khung gốc trong theme", "ok");
       renderFingerprintTab();
     });
+    document.getElementById("fpAnimRotateBtn").addEventListener("click", () => document.getElementById("fpAnimRotateInput").click());
+    document.getElementById("fpAnimRotateInput").addEventListener("change", async (e) => {
+      if (!e.target.files.length) return;
+      const file = e.target.files[0];
+      const count = Math.max(4, Math.min(60, parseInt(document.getElementById("fpAnimRotateFrameCount").value, 10) || 24));
+      const btn = document.getElementById("fpAnimRotateBtn");
+      btn.disabled = true; btn.textContent = "Đang xoay...";
+      try {
+        const frames = await generateRotatingFrames(file, count, 900);
+        pushUndoSnapshot();
+        fpAnimReplacementFrames = frames;
+        const newNames = frames.map((_, i) => String(i + 1).padStart(3, "0") + ".png");
+        fpAnimFrameNames = newNames;
+        fpAnimXmlRaw = fpAnimXmlRaw.replace(/<resource>"?[^"<]*"?<\/resource>/, `<resource>"${newNames.join(",")}"</resource>`);
+        toast(`Đã tự tạo ${count} khung xoay tròn — nhớ bấm Xuất file theme`, "ok");
+        renderFingerprintTab();
+      } catch (err) {
+        toast("Lỗi khi tự tạo khung xoay: " + err.message, "err");
+        btn.disabled = false; btn.textContent = "Chọn ảnh & tự xoay";
+      }
+      e.target.value = "";
+    });
   }
+}
+
+async function generateRotatingFrames(file, count, size) {
+  const dataUrl = await blobToDataURL(file);
+  const img = await new Promise((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = reject;
+    im.src = dataUrl;
+  });
+  const frames = [];
+  const canvas = document.createElement("canvas");
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  // Ve vua khit trong khung vuong, giu ti le, can giua - tranh bi meo hinh
+  const scale = Math.min(size / img.width, size / img.height) * 0.9; // chua 90% de xoay khong bi cham vien
+  const dw = img.width * scale, dh = img.height * scale;
+  for (let i = 0; i < count; i++) {
+    ctx.clearRect(0, 0, size, size);
+    ctx.save();
+    ctx.translate(size / 2, size / 2);
+    ctx.rotate((i / count) * 2 * Math.PI);
+    ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
+    ctx.restore();
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+    frames.push(new File([blob], String(i + 1).padStart(3, "0") + ".png", { type: "image/png" }));
+  }
+  return frames;
 }
 
 function renderIconsTab() {
