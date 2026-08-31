@@ -392,6 +392,8 @@
             <option value="zip">Xuất .zip (để mở kiểm tra trước)</option>
           </select>
         </div>
+        <button class="btn small" id="previewSizeBtn" style="width:100%;margin-top:6px">📊 Xem trước tổng dung lượng &amp; số file</button>
+        <div id="previewSizeResult" class="hint" style="margin-top:6px"></div>
         <button class="btn primary" id="exportBtn" style="width:100%;margin-top:6px">📦 Xuất file theme</button>
       </div>
       <div class="card">
@@ -6433,11 +6435,7 @@ document.getElementById("checkThemeBtn").addEventListener("click", async () => {
   html += `<div class="hint" style="margin-top:8px">Lưu ý: đây chỉ là kiểm tra sơ bộ trên máy tính — không thay được việc cài thử lên máy Honor thật.</div>`;
   box.innerHTML = html;
 });
-document.getElementById("exportBtn").addEventListener("click", async () => {
-  const btn = document.getElementById("exportBtn");
-  btn.disabled = true;
-  btn.textContent = "Đang đóng gói...";
-  try {
+async function buildExportZipBlob() {
     const outZip = new JSZip();
     const paths = Object.keys(mainZip.files).filter(p => !mainZip.files[p].dir);
 
@@ -6657,6 +6655,16 @@ document.getElementById("exportBtn").addEventListener("click", async () => {
     }
 
     const outBlob = await outZip.generateAsync({ type: "blob", compression: "DEFLATE" });
+    const fileCount = Object.keys(outZip.files).filter(n => !outZip.files[n].dir).length;
+    return { blob: outBlob, fileCount };
+}
+
+document.getElementById("exportBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("exportBtn");
+  btn.disabled = true;
+  btn.textContent = "Đang đóng gói...";
+  try {
+    const { blob: outBlob } = await buildExportZipBlob();
     const a = document.createElement("a");
     const baseName = originalFileName.replace(/\.(hwt|hnt|zip)$/i, "");
     const fmt = document.getElementById("exportFormat").value;
@@ -6672,6 +6680,24 @@ document.getElementById("exportBtn").addEventListener("click", async () => {
   } finally {
     btn.disabled = false;
     btn.textContent = "Xuất file theme";
+  }
+});
+document.getElementById("previewSizeBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("previewSizeBtn");
+  const resultEl = document.getElementById("previewSizeResult");
+  btn.disabled = true;
+  btn.textContent = "Đang tính...";
+  resultEl.textContent = "";
+  try {
+    const { blob: outBlob, fileCount } = await buildExportZipBlob();
+    const sizeMB = (outBlob.size / 1024 / 1024).toFixed(2);
+    resultEl.textContent = `${fileCount} file — tổng ${sizeMB} MB (đúng bằng dung lượng file thật sẽ tải xuống, vì đây là kết quả đóng gói thật, không phải ước lượng).`;
+  } catch (err) {
+    console.error(err);
+    toast("Lỗi khi tính dung lượng: " + err.message, "err");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "📊 Xem trước tổng dung lượng & số file";
   }
 });
 checkAndOfferAutosaveRestore();
